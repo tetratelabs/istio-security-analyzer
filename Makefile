@@ -8,7 +8,7 @@ test:
 .PHONY: build
 build:
 	@mkdir -p out/
-	@go build -o out/main ./cmd/main.go
+	@go build -o out/scanner ./cmd/main.go
 
 .PHONY: clean
 clean:

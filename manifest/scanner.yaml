@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scanner
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scanner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scanner
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      serviceAccountName: scanner
+      containers:
+      - image: gcr.io/jianfeih-test-321318/scanner:dev
+        imagePullPolicy: Always
+        name: scanner
+        args:
+        - "--kubeconfig"
+        - "$HOME/.kube/config"
+        ports:
+        - containerPort: 8000
