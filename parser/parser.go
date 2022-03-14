@@ -2,7 +2,6 @@
 package parser
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -30,11 +29,12 @@ var (
 		istioscheme.AddToScheme,
 		scheme.AddToScheme,
 	)
+)
 
-	authzNegativeMatchInAllow = errors.New("authorization policy: found negative matches in allow policy")
-	authzPositiveDeny         = errors.New("authorization policy: found positive matches in deny policy")
-
-	destinationRuleTlsNotVerify = errors.New("destination rule: either caCertificates or subjectAltNames is not set.")
+const (
+	authzNegativeMatchInAllow   = "authorization policy: found negative matches in allow policy"
+	authzPositiveDeny           = "authorization policy: found positive matches in deny policy"
+	destinationRuleTlsNotVerify = "destination rule: either caCertificates or subjectAltNames is not set."
 )
 
 // Report contains the scanning report.
@@ -43,6 +43,10 @@ type Report struct {
 	NetworkingPolicyCount int
 	PolicyIssues          []error
 	Vunerabilities        []string
+}
+
+func reportError(c *istioConfig.Config, message string) error {
+	return fmt.Errorf("%v %v/%v: %v", c.GroupVersionKind, c.Namespace, c.Name, message)
 }
 
 // Parse reads the given configuration file.
@@ -145,21 +149,11 @@ func CheckAll(configs []*istioConfig.Config) []error {
 	for _, c := range configs {
 		switch c.GroupVersionKind {
 		case istiogvk.AuthorizationPolicy:
-			authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
-			if !ok {
-				log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
-				continue
-			}
-			if err := chekcAuthorizationPolicy(authz); err != nil {
+			if err := checkAuthorizationPolicy(c); err != nil {
 				out = append(out, err)
 			}
 		case istiogvk.DestinationRule:
-			dr, ok := c.Spec.(*networkingv1.DestinationRule)
-			if !ok {
-				log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
-				continue
-			}
-			if err := checkDestinationRule(dr); err != nil {
+			if err := checkDestinationRule(c); err != nil {
 				out = append(out, err)
 			}
 		}
@@ -229,25 +223,30 @@ func hasPositiveMatchInTo(to *istiosec.Rule_To) bool {
 		len(to.Operation.Paths) != 0 || len(to.Operation.Ports) != 0
 }
 
-func chekcAuthorizationPolicy(authz *istiosec.AuthorizationPolicy) error {
-	if authz == nil {
+func checkAuthorizationPolicy(c *istioConfig.Config) error {
+	if c == nil {
+		return nil
+	}
+	authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
+	if !ok {
+		log.Debugf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if authz.Action == istiosec.AuthorizationPolicy_ALLOW {
 		for _, r := range authz.Rules {
 			for _, f := range r.From {
 				if hasNegativeMatchInFrom(f) {
-					return authzNegativeMatchInAllow
+					return reportError(c, authzNegativeMatchInAllow)
 				}
 			}
 			for _, t := range r.To {
 				if hasNegativMatchInTo(t) {
-					return authzNegativeMatchInAllow
+					return reportError(c, authzNegativeMatchInAllow)
 				}
 			}
 			for _, cond := range r.When {
 				if len(cond.NotValues) != 0 {
-					return authzNegativeMatchInAllow
+					return reportError(c, authzNegativeMatchInAllow)
 				}
 			}
 		}
@@ -256,17 +255,17 @@ func chekcAuthorizationPolicy(authz *istiosec.AuthorizationPolicy) error {
 		for _, r := range authz.Rules {
 			for _, f := range r.From {
 				if hasPositiveMatchInFrom(f) {
-					return authzPositiveDeny
+					return reportError(c, authzPositiveDeny)
 				}
 			}
 			for _, t := range r.To {
 				if hasPositiveMatchInTo(t) {
-					return authzPositiveDeny
+					return reportError(c, authzPositiveDeny)
 				}
 			}
 			for _, cond := range r.When {
 				if len(cond.Values) != 0 {
-					return authzNegativeMatchInAllow
+					return reportError(c, authzPositiveDeny)
 				}
 			}
 		}
@@ -282,21 +281,26 @@ func checkTlsSettings(tls *networkingv1.ClientTLSSettings) error {
 	return nil
 }
 
-func checkDestinationRule(dr *networkingv1.DestinationRule) error {
-	if dr == nil {
+func checkDestinationRule(c *istioConfig.Config) error {
+	if c == nil {
+		return nil
+	}
+	dr, ok := c.Spec.(*networkingv1.DestinationRule)
+	if !ok {
+		log.Debugf("unable to convert to istio destination rule: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if err := checkTlsSettings(dr.GetTrafficPolicy().GetTls()); err != nil {
-		return destinationRuleTlsNotVerify
+		return reportError(c, destinationRuleTlsNotVerify)
 	}
 	for _, ps := range dr.GetTrafficPolicy().PortLevelSettings {
 		if err := checkTlsSettings(ps.GetTls()); err != nil {
-			return destinationRuleTlsNotVerify
+			return reportError(c, destinationRuleTlsNotVerify)
 		}
 	}
 	for _, ss := range dr.GetSubsets() {
 		if err := checkTlsSettings(ss.GetTrafficPolicy().GetTls()); err != nil {
-			return destinationRuleTlsNotVerify
+			return reportError(c, destinationRuleTlsNotVerify)
 		}
 	}
 	return nil
