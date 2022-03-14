@@ -183,8 +183,10 @@ func CheckFileSystem(dir string) []error {
 			return fmt.Errorf("failed to decode config: %v", err)
 		}
 		errs := CheckAll(configs)
-		if len(errs) != 0 {
-			out = append(out, errs...)
+		for _, e := range errs {
+			if e != nil {
+				out = append(out, e)
+			}
 		}
 		return nil
 	})

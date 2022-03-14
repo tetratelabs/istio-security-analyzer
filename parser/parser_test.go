@@ -1,37 +1,33 @@
 package parser
 
 import (
-	"fmt"
-	"io/ioutil"
 	"testing"
 
-	istiosec "istio.io/api/security/v1beta1"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseFile(t *testing.T) {
 	testCases := []struct {
-		name string
-		file string
+		name       string
+		file       string
+		errMessage []string
 	}{
 		{
 			name: "authz",
-			file: "authz.yaml",
+			file: "testdata/authz.yaml",
+		},
+		{
+			name:       "non exists",
+			file:       "authz-noexists.yaml",
+			errMessage: []string{"not a valid path"},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			b, err := ioutil.ReadFile("testdata/authz.yaml")
-			if err != nil {
-				t.Errorf("failed to read the config file: %v", err)
-				return
-			}
-			c, err := decodeConfigYAML(string(b))
-			if err != nil {
-				t.Errorf("failed to parse, error %v", err)
-			}
-			for _, cc := range c {
-				ok, f := (cc.Spec).(*istiosec.AuthorizationPolicy)
-				fmt.Printf("jianfeih conversion: %v, %v\n", ok, f)
+			errs := CheckFileSystem(tc.file)
+			require.Equal(t, len(errs), len(tc.errMessage))
+			for ind, msg := range tc.errMessage {
+				require.Contains(t, errs[ind].Error(), msg)
 			}
 		})
 	}
