@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/incfly/gotmpl/k8s"
 	"github.com/incfly/gotmpl/parser"
@@ -27,15 +26,12 @@ var (
 	scannerCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			if kubeConfigPath != "" {
-
-				// create client from the config.
-
-				// TODO: kubeclient.
-				_, err := k8s.NewClient(kubeConfigPath)
+				c, err := k8s.NewClient(kubeConfigPath)
 				if err != nil {
 					log.Fatalf("error %v", err)
 				}
-				time.Sleep(time.Second * 3600)
+				stopCh := make(chan struct{})
+				c.Run(stopCh)
 				// start the watch loop for all istio config.
 
 				// -- above two decide what kind of client to create. library identification.

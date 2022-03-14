@@ -16,60 +16,33 @@ import (
 	istiogvk "istio.io/istio/pkg/config/schema/gvk"
 	"istio.io/istio/pkg/kube"
 	kubelib "istio.io/istio/pkg/kube"
-	"istio.io/istio/pkg/queue"
 	"istio.io/pkg/log"
 
-	// "github.com/tetrateio/xcp/xcpd/pkg/store/kube/crdclient"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
-
-// A collection of k8s resources that can be watched with one event batching queue
-type kubernetesResource struct {
-	queue    queue.Instance
-	informer cache.SharedIndexInformer
-}
 
 func foo(client kubelib.Client) {
 	stopCh := make(chan struct{})
 	factory := informers.NewSharedInformerFactoryWithOptions(client, time.Second*30,
 		informers.WithNamespace(meta_v1.NamespaceAll))
-	namespaceController := &kubernetesResource{
-		queue:    queue.NewQueue(1 * time.Second),
-		informer: factory.Core().V1().Namespaces().Informer(),
-	}
+	informer := factory.Core().V1().Namespaces().Informer()
 	factory.Start(stopCh)
 	if !cache.WaitForCacheSync(stopCh,
-		namespaceController.informer.HasSynced) {
+		informer.HasSynced) {
 		panic(fmt.Errorf("failed to sync caches for namesapce informers"))
 	}
 	// nsList, err := factory.Core().V1().Namespaces().Lister().List(k8sApiLabels.Everything())
 	// if err != nil {
 	// 	panic(fmt.Errorf("sharedInformer for namespaces failed listing namespaces"))
 	// }
-
 	// c.Lock()
 	// for _, ns := range nsList {
 	// 	c.namespaces[ns.Name] = struct{}{}
 	// }
 	// c.Unlock()
-	namespaceController.informer.AddEventHandler(&namespaceHandler{})
+	informer.AddEventHandler(&namespaceHandler{})
 	time.Sleep(time.Second * 3600)
-	// registerNamespaceEventHandlers(c.namespaceController.informer, c.namespaceController.queue, c.namespaceEvent)
-}
-
-type namespaceHandler struct{}
-
-func (nh *namespaceHandler) OnAdd(obj interface{}) {
-	log.Infof("jianfeih print on add: %v", obj)
-}
-
-func (nh *namespaceHandler) OnUpdate(old interface{}, new interface{}) {
-
-}
-
-func (nh *namespaceHandler) OnDelete(_ interface{}) {
-
 }
 
 func makeClient(t *testing.T, schemas collection.Schemas) (model.ConfigStoreCache, kube.ExtendedClient) {
@@ -99,7 +72,7 @@ func makeClient(t *testing.T, schemas collection.Schemas) (model.ConfigStoreCach
 
 	go func() {
 		for {
-			log.Infof("jianfieh print out all names")
+			log.Infof("jianfeih print out all names")
 			configs, err := config.List(istiogvk.AuthorizationPolicy, "foo")
 			if err == nil {
 				for _, c := range configs {
