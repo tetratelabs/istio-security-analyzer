@@ -145,15 +145,21 @@ func decodeConfigYAML(rawYAML string) ([]*istioConfig.Config, error) {
 	return configs, nil
 }
 
+func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
+	input.Version = ""
+	target.Version = ""
+	return input == target
+}
+
 func CheckAll(configs []*istioConfig.Config) []error {
 	out := []error{}
 	for _, c := range configs {
-		switch c.GroupVersionKind {
-		case istiogvk.AuthorizationPolicy:
+		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.AuthorizationPolicy) {
 			if err := checkAuthorizationPolicy(c); err != nil {
 				out = append(out, err)
 			}
-		case istiogvk.DestinationRule:
+		}
+		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.DestinationRule) {
 			if err := checkDestinationRule(c); err != nil {
 				out = append(out, err)
 			}
@@ -280,12 +286,20 @@ func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	return nil
 }
 
-func checkTlsSettings(tls *networkingv1.ClientTLSSettings) error {
+// TODO(incfly): the correct logic, to be verified in experiment though is
+// - if VERIFY_CERTIFICATE_AT_CLIENT is false and destination rule does not have ca cert specified
+//   reports warnings.
+// - if not so, but the sub alt name is empty, report warning as well.
+// For now we only check the config statically.
+func hasVerificationIssue(tls *networkingv1.ClientTLSSettings) bool {
 	if tls == nil {
-		return nil
+		return false
 	}
-	// TODO(jianfeih): here.
-	return nil
+	mode := tls.GetMode()
+	if mode == networkingv1.ClientTLSSettings_DISABLE || mode == networkingv1.ClientTLSSettings_ISTIO_MUTUAL {
+		return false
+	}
+	return len(tls.SubjectAltNames) == 0
 }
 
 func checkDestinationRule(c *istioConfig.Config) error {
@@ -293,20 +307,21 @@ func checkDestinationRule(c *istioConfig.Config) error {
 		return nil
 	}
 	dr, ok := c.Spec.(*networkingv1.DestinationRule)
+	// TODO(incfly): seems if the YAML is v1alpha3, not able to convert.
 	if !ok {
-		log.Debugf("unable to convert to istio destination rule: %v\n%v", ok, c.Spec)
+		log.Errorf("unable to convert to istio destination rule: %v\n%v", ok, c.Spec)
 		return nil
 	}
-	if err := checkTlsSettings(dr.GetTrafficPolicy().GetTls()); err != nil {
+	if hasVerificationIssue(dr.GetTrafficPolicy().GetTls()) {
 		return reportError(c, destinationRuleTlsNotVerify)
 	}
 	for _, ps := range dr.GetTrafficPolicy().PortLevelSettings {
-		if err := checkTlsSettings(ps.GetTls()); err != nil {
+		if hasVerificationIssue(ps.GetTls()) {
 			return reportError(c, destinationRuleTlsNotVerify)
 		}
 	}
 	for _, ss := range dr.GetSubsets() {
-		if err := checkTlsSettings(ss.GetTrafficPolicy().GetTls()); err != nil {
+		if hasVerificationIssue(ss.GetTrafficPolicy().GetTls()) {
 			return reportError(c, destinationRuleTlsNotVerify)
 		}
 	}
