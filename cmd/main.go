@@ -55,7 +55,7 @@ func init() {
 	flags := scannerCmd.Flags()
 
 	flags.StringVarP(&configDir, "dir", "d", ".", "The input directory storing Istio YAML configuration.")
-	flags.StringVarP(&kubeConfigPath, "config", "c", ".", "The path to the kubeconfig of a cluster to be analyzed.")
+	flags.StringVarP(&kubeConfigPath, "config", "c", "", "The path to the kubeconfig of a cluster to be analyzed.")
 
 	loggingOptions.SetOutputLevel("kube", log.ErrorLevel)
 	loggingOptions.AttachCobraFlags(scannerCmd)

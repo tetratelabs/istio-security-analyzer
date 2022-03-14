@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"reflect"
@@ -164,8 +165,12 @@ func CheckAll(configs []*istioConfig.Config) []error {
 // CheckFileSystem checks configuration stored on file system.
 func CheckFileSystem(dir string) []error {
 	out := []error{}
+	// first check the entry point is a valid path.
+	if _, err := os.Stat(dir); err != nil {
+		return []error{fmt.Errorf("%v is not a valid path: %v", dir, err)}
+	}
 	err := filepath.WalkDir(dir, func(path string, dir fs.DirEntry, _ error) error {
-		log.Infof("Checking config: %v", path)
+		log.Infof("Checking config file: %v", path)
 		if dir.IsDir() {
 			return nil
 		}
