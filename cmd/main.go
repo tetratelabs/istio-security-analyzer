@@ -7,6 +7,26 @@ package main
 // - [ ] Check reports the total number of the policy scanned. (58 security policies, 32 networking policies.)
 // - [ ] Consider to add more accurate error message tied to the field.
 
+// CUJ: user experience.
+// Analyze the local config only
+// scanner # prints the ".", using default kubeconfig find the cve version.
+
+// scanner --dir . # print the local dir.
+
+// scanner --mode <cluster|cli> # only in cluster we ignore the dir value.
+
+// CVE default database, use official URL: gist.github.com for now.
+
+// CVE db, using file system.
+// scanner --cve-database ./path/to/db
+
+// Analyze the Istio cluster.
+// scanner --kube <kubeconfig-path>
+
+// Usage.
+//  ./out/scanner --config $HOME/.kube/config  --mode cluster
+// ./out/scanner --config $HOME/.kube/config --dir ./parser
+
 import (
 	"fmt"
 
@@ -20,42 +40,53 @@ import (
 var (
 	configDir      = "./"
 	kubeConfigPath = "."
+	executeMode    = "mode"
 
 	loggingOptions log.Options
 
 	scannerCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
-			if kubeConfigPath != "" {
-				c, err := k8s.NewClient(kubeConfigPath)
-				if err != nil {
-					log.Fatalf("error %v", err)
-				}
-				stopCh := make(chan struct{})
-				c.Run(stopCh)
-				// start the watch loop for all istio config.
-
-				// -- above two decide what kind of client to create. library identification.
-				// istio controller OTS.
-
-				// snapshot analyze.
-
-				// report via log, or http server.
-			}
-			err := parser.CheckFileSystem(configDir)
-			if err == nil {
-				fmt.Println("success, no error found!")
-				return
-			}
-			fmt.Printf("found warnings: %v\n", err)
+			RunAll(&Option{
+				KubeConfig: kubeConfigPath,
+				ExecMode:       executeMode,
+			})
 		},
 	}
 )
+
+// TODO(incfly): move to the right package may not in main.go.
+type Option struct {
+	ExecMode            string
+	Dir             string
+	KubeConfig      string
+	CVEDatabaseURL  string
+	CVEDatabasePath string
+}
+
+func RunAll(options *Option) {
+	if options.ExecMode == "cluster" {
+		c, err := k8s.NewClient(options.KubeConfig)
+		if err != nil {
+			log.Fatalf("error %v", err)
+		}
+		stopCh := make(chan struct{})
+		c.Run(stopCh)
+	} else {
+		err := parser.CheckFileSystem(configDir)
+		if err == nil {
+			fmt.Println("success, no error found!")
+			return
+		}
+		fmt.Printf("found warnings: %v\n", err)
+	}
+}
 
 func init() {
 	flags := scannerCmd.Flags()
 
 	flags.StringVarP(&configDir, "dir", "d", ".", "The input directory storing Istio YAML configuration.")
 	flags.StringVarP(&kubeConfigPath, "config", "c", "", "The path to the kubeconfig of a cluster to be analyzed.")
+	flags.StringVarP(&executeMode, "mode", "m", "cli", "The mode the scanner tool to run, valid options: cluster | cli.")
 
 	loggingOptions.SetOutputLevel("kube", log.ErrorLevel)
 	loggingOptions.AttachCobraFlags(scannerCmd)

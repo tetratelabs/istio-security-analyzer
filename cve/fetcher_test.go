@@ -7,3 +7,6 @@ func TestFetch(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestFindVunerabilities(t *testing.T) {
+}

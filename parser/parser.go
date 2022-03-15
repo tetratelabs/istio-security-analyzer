@@ -125,6 +125,9 @@ func decodeConfigYAML(rawYAML string) ([]*istioConfig.Config, error) {
 		}
 		kobjVal := reflect.ValueOf(kobj).Elem()
 		specField := kobjVal.FieldByName("Spec")
+		if !specField.IsValid() {
+			return nil, fmt.Errorf("not find Spec field in the YALM")
+		}
 		typedSpec := specField.Addr().Interface()
 
 		configs = append(configs, &istioConfig.Config{
@@ -176,18 +179,21 @@ func CheckFileSystem(dir string) []error {
 		return []error{fmt.Errorf("%v is not a valid path: %v", dir, err)}
 	}
 	err := filepath.WalkDir(dir, func(path string, dir fs.DirEntry, _ error) error {
-		log.Infof("Checking config file: %v", path)
+		log.Debugf("Checking file: %v", path)
 		if dir.IsDir() {
 			return nil
 		}
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
-			return err
+			log.Debugf("failed to read the file: %v", err)
+			return nil
 		}
 		configs, err := decodeConfigYAML(string(b))
 		if err != nil {
-			return fmt.Errorf("failed to decode config: %v", err)
+			log.Debugf("failed to read the file: %v", err)
+			return nil
 		}
+		log.Infof("Checking Istio config file: %v", path)
 		errs := CheckAll(configs)
 		for _, e := range errs {
 			if e != nil {

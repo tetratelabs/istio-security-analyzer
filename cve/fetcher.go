@@ -3,9 +3,69 @@ package cve
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+type EntryInfo struct {
+	// DisclosureID uniquely identifies a single disclosure. For example, "ISTIO-SECURITY-2022-004".
+	DisclosureID string
+	// Description is a human-readable summary of the CVE.
+	Description string
+	// [0, 10].
+	ImpactScore   float32
+	Date          time.Time
+	IstioReleases map[string]struct{}
+}
+
+func buildImpactedReleases(releases ...string) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, r := range releases {
+		out[r] = struct{}{}
+	}
+	return out
+}
+
+func TestOnlyEntryInfo() []EntryInfo {
+	return []EntryInfo{
+		{
+			DisclosureID: "ISTIO-SECURITY-2022-004",
+			Description: "	Unauthenticated control plane denial of service attack due to stack exhaustion",
+			ImpactScore: 7.5,
+			IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
+				"1.11.4", "1.11.5", "1.11.6", "1.11.7"),
+		},
+		{
+			DisclosureID: "ISTIO-SECURITY-2022-003",
+			Description:  "Multiple CVEs related to istiod Denial of Service and Envoy",
+			ImpactScore:  7.5,
+			IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
+				"1.11.4", "1.11.5", "1.11.6"),
+		},
+	}
+}
+
+func LoadDatabase(file string) ([]EntryInfo, error) {
+	out := []EntryInfo{}
+	return out, nil
+}
+
+func SaveDatabase(entries []EntryInfo, path string) {
+}
+
+// FindVunerabilities returns the relevant security disclosures that might the given Istio release.
+func FindVunerabilities(version string) []string {
+	out := []string{}
+	cves := TestOnlyEntryInfo()
+	for _, entry := range cves {
+		_, ok := entry.IstioReleases[version]
+		if ok {
+			out = append(out, entry.DisclosureID)
+		}
+	}
+	return out
+}
 
 func FetchIstioPage() error {
 	resp, err := http.Get("https://istio.io/latest/news/security/")
