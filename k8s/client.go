@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -83,6 +84,13 @@ func (c *Client) Run(stopCh chan struct{}) {
 	go c.kubeClient.RunAndWait(stopCh)
 	for {
 		c.scanAll()
+		// Hard code as istio-system for now. May need to change for multi revision deployments.
+		v, err := c.kubeClient.GetIstioVersions(context.TODO(), "istio-system")
+		if err != nil {
+			log.Errorf("failed to extract istio version: %v", err)
+		} else {
+			log.Infof("Istio version: %v", (*v)[0].Info.Version)
+		}
 		time.Sleep(time.Second * 10)
 	}
 }
