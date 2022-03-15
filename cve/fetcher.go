@@ -14,8 +14,10 @@ type EntryInfo struct {
 	// Description is a human-readable summary of the CVE.
 	Description string
 	// [0, 10].
-	ImpactScore   float32
-	Date          time.Time
+	ImpactScore float32
+	Date        time.Time
+	// TODO: think deeper on the appropriate way to represent the release set.
+	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
 	IstioReleases map[string]struct{}
 }
 
@@ -29,6 +31,12 @@ func buildImpactedReleases(releases ...string) map[string]struct{} {
 
 func TestOnlyEntryInfo() []EntryInfo {
 	return []EntryInfo{
+		{
+			DisclosureID:  "ISTIO-SECURITY-2022-FOO",
+			Description:   "VERY IMPORTANT SEC report: FOO2022!",
+			ImpactScore:   9.9,
+			IstioReleases: buildImpactedReleases("1.7.8"),
+		},
 		{
 			DisclosureID: "ISTIO-SECURITY-2022-004",
 			Description: "	Unauthenticated control plane denial of service attack due to stack exhaustion",
@@ -46,6 +54,8 @@ func TestOnlyEntryInfo() []EntryInfo {
 	}
 }
 
+// TODO(here): externalize the CVE information to data input.
+// LoadDatabase loads the information from a YAML format config.
 func LoadDatabase(file string) ([]EntryInfo, error) {
 	out := []EntryInfo{}
 	return out, nil
@@ -78,6 +88,7 @@ func FetchIstioPage() error {
 		return err
 	}
 
+	// TODO(here): complete the parsing of the CVE entry info.
 	doc.Find(".security-grid table tbody tr").Each(func(i int, s *goquery.Selection) {
 		a := s.ChildrenFiltered("td")
 		// NOTE: for affetcted release, Istio annoucement page uses a human readable format.

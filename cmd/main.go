@@ -30,6 +30,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/incfly/gotmpl/cve"
 	"github.com/incfly/gotmpl/k8s"
 	"github.com/incfly/gotmpl/parser"
 
@@ -48,7 +49,7 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			RunAll(&Option{
 				KubeConfig: kubeConfigPath,
-				ExecMode:       executeMode,
+				ExecMode:   executeMode,
 			})
 		},
 	}
@@ -56,7 +57,7 @@ var (
 
 // TODO(incfly): move to the right package may not in main.go.
 type Option struct {
-	ExecMode            string
+	ExecMode        string
 	Dir             string
 	KubeConfig      string
 	CVEDatabaseURL  string
@@ -71,14 +72,23 @@ func RunAll(options *Option) {
 		}
 		stopCh := make(chan struct{})
 		c.Run(stopCh)
-	} else {
-		err := parser.CheckFileSystem(configDir)
-		if err == nil {
-			fmt.Println("success, no error found!")
-			return
-		}
-		fmt.Printf("found warnings: %v\n", err)
+		return
 	}
+	// CLI mode.
+	err := parser.CheckFileSystem(configDir)
+	if err == nil {
+		fmt.Println("success, no error found!")
+		return
+	}
+	fmt.Printf("found warnings: %v\n", err)
+	// Checking CVE based on current Istio version.
+	ver, e := k8s.IstioVersion(options.KubeConfig)
+	if e != nil {
+		log.Errorf("failed to get Istio version: %v", err)
+		return
+	}
+	out := cve.FindVunerabilities(ver)
+	fmt.Printf("CVE report: %v\n", out)
 }
 
 func init() {

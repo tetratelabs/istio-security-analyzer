@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/incfly/gotmpl/cve"
 	"github.com/incfly/gotmpl/parser"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -39,8 +40,8 @@ func (nh *namespaceHandler) OnUpdate(old interface{}, new interface{}) {
 func (nh *namespaceHandler) OnDelete(delete interface{}) {
 }
 
-func NewClient(kubeConfigPath string) (*Client, error) {
-	kubeRestConfig, err := kubelib.DefaultRestConfig(kubeConfigPath, "", func(config *rest.Config) {
+func istioClientFromKubeConfig(config string) (kubelib.ExtendedClient, error) {
+	kubeRestConfig, err := kubelib.DefaultRestConfig(config, "", func(config *rest.Config) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kube client: %v", err)
@@ -48,7 +49,15 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	istioKubeClient, err := kubelib.NewExtendedClient(
 		kubelib.NewClientConfigForRestConfig(kubeRestConfig), "")
 	if err != nil {
-		log.Fatalf("failed creating istio kube client: %v", err)
+		return nil, err
+	}
+	return istioKubeClient, nil
+}
+
+func NewClient(kubeConfigPath string) (*Client, error) {
+	istioKubeClient, err := istioClientFromKubeConfig(kubeConfigPath)
+	if err != nil {
+		return nil, err
 	}
 	factory := informers.NewSharedInformerFactoryWithOptions(istioKubeClient, time.Second*30,
 		informers.WithNamespace(meta_v1.NamespaceAll))
@@ -60,13 +69,7 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	stopCh := make(chan struct{})
 	factory.Start(stopCh)
 
-	// Add Istio config part.
-	kubeClient, err := kubelib.NewExtendedClient(
-		kubelib.NewClientConfigForRestConfig(kubeRestConfig), "")
-	if err != nil {
-		return nil, err
-	}
-	configStore, err := crdclient.New(kubeClient, "", "")
+	configStore, err := crdclient.New(istioKubeClient, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +77,20 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 		old istioconfig.Config, new istioconfig.Config, e model.Event) {
 	})
 	out.configStore = configStore
-	out.kubeClient = kubeClient
+	out.kubeClient = istioKubeClient
 	return out, nil
+}
+
+func IstioVersion(kubeConfig string) (string, error) {
+	c, err := istioClientFromKubeConfig(kubeConfig)
+	if err != nil {
+		return "", err
+	}
+	version, err := c.GetIstioVersions(context.TODO(), "istio-system")
+	if err != nil {
+		return "", err
+	}
+	return (*version)[0].Info.Version, nil
 }
 
 func (c *Client) Run(stopCh chan struct{}) {
@@ -87,9 +102,12 @@ func (c *Client) Run(stopCh chan struct{}) {
 		// Hard code as istio-system for now. May need to change for multi revision deployments.
 		v, err := c.kubeClient.GetIstioVersions(context.TODO(), "istio-system")
 		if err != nil {
-			log.Errorf("failed to extract istio version: %v", err)
+			log.Errorf("Failed to extract istio version: %v", err)
 		} else {
-			log.Infof("Istio version: %v", (*v)[0].Info.Version)
+			version := (*v)[0].Info.Version
+			log.Infof("Istio version: %v", version)
+			cves := cve.FindVunerabilities(version)
+			log.Infof("CVE list: %v\n", cves)
 		}
 		time.Sleep(time.Second * 10)
 	}
