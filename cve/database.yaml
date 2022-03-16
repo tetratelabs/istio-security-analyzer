@@ -1,1 +1,30 @@
-# CVE database
+- disclosureid: ISTIO-SECURITY-2022-FOO
+  description: 'VERY IMPORTANT SEC report: FOO2022!'
+  impactscore: 9.9
+  date: 0001-01-01T00:00:00Z
+  istioreleases:
+    1.7.8: {}
+- disclosureid: ISTIO-SECURITY-2022-004
+  description: Unauthenticated control plane denial of service attack due to stack
+    exhaustion
+  impactscore: 7.5
+  date: 0001-01-01T00:00:00Z
+  istioreleases:
+    1.11.1: {}
+    1.11.2: {}
+    1.11.3: {}
+    1.11.4: {}
+    1.11.5: {}
+    1.11.6: {}
+    1.11.7: {}
+- disclosureid: ISTIO-SECURITY-2022-003
+  description: Multiple CVEs related to istiod Denial of Service and Envoy
+  impactscore: 7.5
+  date: 0001-01-01T00:00:00Z
+  istioreleases:
+    1.11.1: {}
+    1.11.2: {}
+    1.11.3: {}
+    1.11.4: {}
+    1.11.5: {}
+    1.11.6: {}
