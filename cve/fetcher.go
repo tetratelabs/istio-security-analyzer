@@ -5,27 +5,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/incfly/gotmpl/model"
 	yaml "gopkg.in/yaml.v2"
 	"istio.io/pkg/log"
 )
-
-type EntryInfo struct {
-	// DisclosureID uniquely identifies a single disclosure. For example, "ISTIO-SECURITY-2022-004".
-	DisclosureID string
-	// Description is a human-readable summary of the CVE.
-	Description string
-	// [0, 10].
-	ImpactScore float32
-	Date        time.Time
-	// TODO: think deeper on the appropriate way to represent the release set.
-	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
-	// TODO: consider make YAML format and the internal data structure different.
-	// 1.7.8: {}, weird.
-	IstioReleases map[string]struct{}
-}
 
 func buildImpactedReleases(releases ...string) map[string]struct{} {
 	out := map[string]struct{}{}
@@ -35,8 +20,8 @@ func buildImpactedReleases(releases ...string) map[string]struct{} {
 	return out
 }
 
-func BuildEntryInfoForTest() []EntryInfo {
-	return []EntryInfo{
+func BuildEntryInfoForTest() []model.CVEEntry {
+	return []model.CVEEntry{
 		{
 			DisclosureID:  "ISTIO-SECURITY-2022-FOO",
 			Description:   "VERY IMPORTANT SEC report: FOO2022!",
@@ -61,8 +46,8 @@ func BuildEntryInfoForTest() []EntryInfo {
 }
 
 // LoadDatabase loads the information from a YAML format config.
-func LoadDatabase(path string) ([]EntryInfo, error) {
-	out := []EntryInfo{}
+func LoadDatabase(path string) ([]model.CVEEntry, error) {
+	out := []model.CVEEntry{}
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cve file: %v", err)
@@ -73,7 +58,7 @@ func LoadDatabase(path string) ([]EntryInfo, error) {
 	return out, nil
 }
 
-func SaveDatabase(entries []EntryInfo, path string) error {
+func SaveDatabase(entries []model.CVEEntry, path string) error {
 	y, err := yaml.Marshal(entries)
 	if err != nil {
 		return err
@@ -97,7 +82,7 @@ func FindVunerabilities(version string) []string {
 	return out
 }
 
-func FetchIstioPage() ([]EntryInfo, error) {
+func FetchIstioPage() ([]model.CVEEntry, error) {
 	resp, err := http.Get("https://istio.io/latest/news/security/")
 	if err != nil {
 		return nil, err
@@ -108,9 +93,9 @@ func FetchIstioPage() ([]EntryInfo, error) {
 		return nil, err
 	}
 
-	entries := []EntryInfo{}
+	entries := []model.CVEEntry{}
 	doc.Find(".security-grid table tbody tr").Each(func(i int, s *goquery.Selection) {
-		entries = append(entries, EntryInfo{})
+		entries = append(entries, model.CVEEntry{})
 		a := s.ChildrenFiltered("td")
 		// NOTE: for affetcted release, Istio annoucement page uses a human readable format.
 		// Parsing and convert text to an array of the versions is fragile.
