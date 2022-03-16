@@ -2,22 +2,40 @@ package model
 
 import (
 	"bytes"
-	"html/template"
-	"io/ioutil"
+	"fmt"
+	"net/http"
+	"text/template"
 )
 
+const (
+	reportTemplate = `Istio Security Scanning Report
+
+Config Warnings
+{{range .ConfigWarnings}}- {{ .  }}
+{{end}}
+
+CVE Report
+{{range .Vunerabilities}}- {{ .DisclosureID  }}
+{{end}}
+`
+)
+
+func hello(w http.ResponseWriter, req *http.Request) {
+	report, err := RenderReport()
+	if err != nil {
+		_, _ = w.Write([]byte(fmt.Sprintf("failed to prepare the report: %v", err)))
+		return
+	}
+	_, _ = w.Write([]byte(report))
+}
+
 // Render the security information into a HTML page.
-func RenderHTML() error {
-	b, err := ioutil.ReadFile("report.html.tpl")
+func RenderReport() (string, error) {
+	t, err := template.New("webpage").Parse(string(reportTemplate))
 	if err != nil {
-		return err
+		return "", err
 	}
-	t, err := template.New("webpage").Parse(string(b))
-	if err != nil {
-		return err
-	}
-	data := make([]byte, 2048)
-	bw := bytes.NewBuffer(data)
+	bw := bytes.NewBufferString("")
 	err = t.Execute(bw, SecurityReport{
 		ConfigWarnings: []string{"authz1", "auth2"},
 		Vunerabilities: []CVEEntry{
@@ -27,11 +45,13 @@ func RenderHTML() error {
 		},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
-	// TODO: why it's not openable by vscode? binary file warnings?
-	if err := ioutil.WriteFile("report.html", bw.Bytes(), 0664); err != nil {
-		return err
-	}
-	return nil
+	return bw.String(), nil
+}
+
+// TODO(here): proper server structure.
+func StartAll() {
+	http.HandleFunc("/", hello)
+	http.ListenAndServe(":8080", nil)
 }
