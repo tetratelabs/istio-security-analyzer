@@ -63,6 +63,8 @@ type Option struct {
 }
 
 func RunAll(options *Option) {
+	// TODO(incfly): cluster mode bug. start with authz config, create dr, not print out in the
+	// following HTTP request.
 	if options.ExecMode == "cluster" {
 		c, err := k8s.NewClient(options.KubeConfig)
 		if err != nil {

@@ -1,4 +1,4 @@
-package cve
+package model
 
 import (
 	"os"
@@ -19,6 +19,8 @@ func TestRefreshDatabase(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	e := BuildEntryInfoForTest()
+	// TODO: this should really be merge with existing data instead of override.
+	// New entries are added, existing entries are ignored.
 	if err := SaveDatabase(e, "./database.yaml"); err != nil {
 		t.Error(err)
 	}

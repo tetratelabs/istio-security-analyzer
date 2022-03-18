@@ -31,9 +31,8 @@ type Client struct {
 	nsInformer  cache.SharedIndexInformer
 	nsHandler   cache.ResourceEventHandler
 
-	// mutex protects the access to `report`.
+	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
-	report       smodel.SecurityReport
 	istioVersion string
 	configIssues []error
 }
@@ -78,7 +77,7 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	stopCh := make(chan struct{})
 	factory.Start(stopCh)
 
-	configStore, err := crdclient.New(istioKubeClient, "", "")
+	configStore, err := crdclient.New(istioKubeClient, "default", "")
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +118,9 @@ func (c *Client) Run(stopCh chan struct{}) {
 		}
 
 		c.mu.Lock()
-		c.configIssues = warnings
 		c.istioVersion = istioVersion
-		log.Debugf("Report: %v", c.report)
+		c.configIssues = warnings
+		log.Debugf("Updated Istio version %v, configIssues %v", c.istioVersion, c.configIssues)
 		c.mu.Unlock()
 
 		time.Sleep(time.Second * 10)
@@ -138,7 +137,7 @@ func (c *Client) reportSecuritySummary(w http.ResponseWriter, req *http.Request)
 func (c *Client) serveHTTPReport() {
 	http.HandleFunc("/", c.reportSecuritySummary)
 	if err := http.ListenAndServe("localhost:8080", nil); err != nil {
-		log.Fatalf("Failed to serve http on addr %v: %v", "8080", err)
+		log.Fatalf("Failed to serve http %v", err)
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"text/template"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	"istio.io/pkg/log"
 )
 
@@ -54,7 +54,7 @@ func FindVunerabilities(version string) []*CVEEntry {
 		log.Errorf("Failed to parse version %v", version)
 		return out
 	}
-	cves, err := LoadDatabase("./cve/database.yaml")
+	cves, err := LoadDatabase("./database.yaml")
 	if err != nil {
 		log.Errorf("Failed to load database: %v", err)
 		return out
