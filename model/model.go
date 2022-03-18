@@ -86,6 +86,6 @@ func (rs ReleaseRange) Include(r IstioRelease) bool {
 // SecurityReport contains a comprehensive summary of the scanning results.
 type SecurityReport struct {
 	IstioVersion   string
-	Vunerabilities []CVEEntry
+	Vunerabilities []*CVEEntry
 	ConfigWarnings []string
 }

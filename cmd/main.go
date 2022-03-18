@@ -28,10 +28,8 @@ package main
 // ./out/scanner --config $HOME/.kube/config --dir ./parser
 
 import (
-	"fmt"
-
-	"github.com/incfly/gotmpl/cve"
 	"github.com/incfly/gotmpl/k8s"
+	"github.com/incfly/gotmpl/model"
 	"github.com/incfly/gotmpl/parser"
 
 	"github.com/spf13/cobra"
@@ -75,20 +73,16 @@ func RunAll(options *Option) {
 		return
 	}
 	// CLI mode.
-	err := parser.CheckFileSystem(configDir)
-	if err == nil {
-		fmt.Println("success, no error found!")
-		return
+	configIssues := parser.CheckFileSystem(configDir)
+	ver, err := k8s.IstioVersion(options.KubeConfig)
+	if err != nil {
+		log.Fatalf("failed to get Istio version: %v", configIssues)
 	}
-	fmt.Printf("found warnings: %v\n", err)
-	// Checking CVE based on current Istio version.
-	ver, e := k8s.IstioVersion(options.KubeConfig)
-	if e != nil {
-		log.Errorf("failed to get Istio version: %v", err)
-		return
-	}
-	out := cve.FindVunerabilities(ver)
-	fmt.Printf("CVE report: %v\n", out)
+	report := model.RenderReport(
+		ver,
+		configIssues,
+	)
+	log.Info(report)
 }
 
 func init() {

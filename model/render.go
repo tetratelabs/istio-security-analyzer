@@ -3,8 +3,11 @@ package model
 import (
 	"bytes"
 	"fmt"
-	"net/http"
+	"io/ioutil"
 	"text/template"
+
+	"gopkg.in/yaml.v2"
+	"istio.io/pkg/log"
 )
 
 const (
@@ -20,38 +23,62 @@ CVE Report
 `
 )
 
-func hello(w http.ResponseWriter, req *http.Request) {
-	report, err := RenderReport()
-	if err != nil {
-		_, _ = w.Write([]byte(fmt.Sprintf("failed to prepare the report: %v", err)))
-		return
-	}
-	_, _ = w.Write([]byte(report))
-}
-
-// Render the security information into a HTML page.
-func RenderReport() (string, error) {
+// RenderReport the security information into a HTML page.
+func RenderReport(istioVersion string, configIssues []error) string {
 	t, err := template.New("webpage").Parse(string(reportTemplate))
 	if err != nil {
-		return "", err
+		log.Fatalf("failed create render template: %v", err)
 	}
 	bw := bytes.NewBufferString("")
+	warningMessage := []string{}
+	for _, e := range configIssues {
+		warningMessage = append(warningMessage, e.Error())
+	}
+	log.Infof("jianfeih found issues: %v", configIssues)
 	err = t.Execute(bw, SecurityReport{
-		ConfigWarnings: []string{"authz1", "auth2"},
-		Vunerabilities: []CVEEntry{
-			{
-				DisclosureID: "ISTIO-2022-03-01-0004",
-			},
-		},
+		IstioVersion:   istioVersion,
+		ConfigWarnings: warningMessage,
+		Vunerabilities: FindVunerabilities(istioVersion),
 	})
 	if err != nil {
-		return "", err
+		log.Fatalf("failed to render template: %v", err)
 	}
-	return bw.String(), nil
+	return bw.String()
 }
 
-// TODO(here): proper server structure.
-func StartAll() {
-	http.HandleFunc("/", hello)
-	http.ListenAndServe(":8080", nil)
+// FindVunerabilities returns the relevant security disclosures that might the given Istio release.
+func FindVunerabilities(version string) []*CVEEntry {
+	out := []*CVEEntry{}
+	err, ver := ParseRelease(version)
+	if err != nil {
+		log.Errorf("Failed to parse version %v", version)
+		return out
+	}
+	cves, err := LoadDatabase("./cve/database.yaml")
+	if err != nil {
+		log.Errorf("Failed to load database: %v", err)
+		return out
+	}
+	for ind, entry := range cves {
+		for _, s := range entry.AffectedReleases {
+			if s.Include(ver) {
+				out = append(out, &cves[ind])
+				break
+			}
+		}
+	}
+	return out
+}
+
+// LoadDatabase loads the information from a YAML format config.
+func LoadDatabase(path string) ([]CVEEntry, error) {
+	out := []CVEEntry{}
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read cve file: %v", err)
+	}
+	if err := yaml.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("failed to parse cve file: %v", err)
+	}
+	return out, nil
 }

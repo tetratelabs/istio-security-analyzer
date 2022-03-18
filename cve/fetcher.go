@@ -53,19 +53,6 @@ func BuildEntryInfoForTest() []model.CVEEntry {
 	}
 }
 
-// LoadDatabase loads the information from a YAML format config.
-func LoadDatabase(path string) ([]model.CVEEntry, error) {
-	out := []model.CVEEntry{}
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read cve file: %v", err)
-	}
-	if err := yaml.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("failed to parse cve file: %v", err)
-	}
-	return out, nil
-}
-
 func SaveDatabase(entries []model.CVEEntry, path string) error {
 	y, err := yaml.Marshal(entries)
 	if err != nil {
@@ -75,26 +62,6 @@ func SaveDatabase(entries []model.CVEEntry, path string) error {
 		return fmt.Errorf("failed to save cve entries to file: %v", err)
 	}
 	return nil
-}
-
-// FindVunerabilities returns the relevant security disclosures that might the given Istio release.
-func FindVunerabilities(version string) []string {
-	out := []string{}
-	err, ver := model.ParseRelease(version)
-	if err != nil {
-		log.Errorf("Failed to parse version %v", version)
-		return out
-	}
-	cves := BuildEntryInfoForTest()
-	for _, entry := range cves {
-		for _, s := range entry.AffectedReleases {
-			if s.Include(ver) {
-				out = append(out, entry.DisclosureID)
-				break
-			}
-		}
-	}
-	return out
 }
 
 func FetchIstioPage() ([]model.CVEEntry, error) {

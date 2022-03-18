@@ -3,9 +3,10 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sync"
 	"time"
 
-	"github.com/incfly/gotmpl/cve"
 	"github.com/incfly/gotmpl/parser"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -18,6 +19,8 @@ import (
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
 
+	smodel "github.com/incfly/gotmpl/model"
+
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -27,6 +30,12 @@ type Client struct {
 	kubeClient  kubelib.ExtendedClient
 	nsInformer  cache.SharedIndexInformer
 	nsHandler   cache.ResourceEventHandler
+
+	// mutex protects the access to `report`.
+	mu           sync.Mutex
+	report       smodel.SecurityReport
+	istioVersion string
+	configIssues []error
 }
 
 type namespaceHandler struct{}
@@ -97,25 +106,45 @@ func (c *Client) Run(stopCh chan struct{}) {
 	log.Infof("Starting kubernetes client for scanning.")
 	go c.configStore.Run(stopCh)
 	go c.kubeClient.RunAndWait(stopCh)
+	go c.serveHTTPReport()
 	for {
-		c.scanAll()
+		istioVersion := "undefined"
+		warnings := c.scanAll()
 		// Hard code as istio-system for now. May need to change for multi revision deployments.
 		v, err := c.kubeClient.GetIstioVersions(context.TODO(), "istio-system")
 		if err != nil {
 			log.Errorf("Failed to extract istio version: %v", err)
 		} else {
-			version := (*v)[0].Info.Version
-			log.Infof("Istio version: %v", version)
-			cves := cve.FindVunerabilities(version)
-			log.Infof("CVE list: %v\n", cves)
+			istioVersion = (*v)[0].Info.Version
 		}
+
+		c.mu.Lock()
+		c.configIssues = warnings
+		c.istioVersion = istioVersion
+		log.Debugf("Report: %v", c.report)
+		c.mu.Unlock()
+
 		time.Sleep(time.Second * 10)
 	}
 }
 
-func (c *Client) scanAll() {
-	log.Infof("Staring the new round of scanning.")
-	// iterate namespaces.
+func (c *Client) reportSecuritySummary(w http.ResponseWriter, req *http.Request) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	report := smodel.RenderReport(c.istioVersion, c.configIssues)
+	_, _ = w.Write([]byte(report))
+}
+
+func (c *Client) serveHTTPReport() {
+	http.HandleFunc("/", c.reportSecuritySummary)
+	if err := http.ListenAndServe("localhost:8080", nil); err != nil {
+		log.Fatalf("Failed to serve http on addr %v: %v", "8080", err)
+	}
+}
+
+func (c *Client) scanAll() []error {
+	log.Debugf("Staring the new round of scanning.")
+	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
 	for _, obj := range namespaces {
@@ -135,8 +164,6 @@ func (c *Client) scanAll() {
 		}
 	}
 	errs := parser.CheckAll(configs)
-	if len(errs) != 0 {
-		log.Infof("reporting error\n%v", errs)
-	}
-	log.Infof("Finish scanning.")
+	log.Debugf("Finish scanning.")
+	return errs
 }
