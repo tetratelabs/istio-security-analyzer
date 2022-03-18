@@ -32,10 +32,9 @@ type CVEEntry struct {
 // ReleaseRange represents a single or a range of Istio releases.
 type ReleaseRange struct {
 	RangeType ReleaseRangeType
-
-	// Start a particular release, included.
+	// Start a particular release, included if specified.
 	Start IstioRelease `yaml:"start,omitempty"`
-	// End a particular release, included.
+	// End a particular release, included if specified.
 	End IstioRelease `yaml:"end,omitempty"`
 
 	// Particulr release.
