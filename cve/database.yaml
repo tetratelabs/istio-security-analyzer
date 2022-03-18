@@ -1,27 +1,30 @@
-- disclosureid: ISTIO-SECURITY-2022-FOO
-  description: 'VERY IMPORTANT SEC report: FOO2022!'
-  impactscore: 9.9
-  date: 0001-01-01T00:00:00Z
-  affectedreleases:
-  - rangetype: particular
-    particular:
-      major: "1.7"
-      minor: "8"
+- disclosureID: ISTIO-SECURITY-2022-004
+  description: Unauthenticated control plane denial of service attack due to stack
+    exhaustion
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    end:
+      major: "1.11"
+      minor: "0"
   - rangetype: range
     start:
       major: "1.11"
       minor: "0"
     end:
       major: "1.11"
+      minor: "7"
+  - rangetype: range
+    start:
+      major: "1.12"
+      minor: "0"
+    end:
+      major: "1.12"
       minor: "4"
-- disclosureid: ISTIO-SECURITY-2022-004
-  description: Unauthenticated control plane denial of service attack due to stack
-    exhaustion
-  impactscore: 7.5
-  date: 0001-01-01T00:00:00Z
-  affectedreleases: []
-- disclosureid: ISTIO-SECURITY-2022-003
-  description: Multiple CVEs related to istiod Denial of Service and Envoy
-  impactscore: 7.5
-  date: 0001-01-01T00:00:00Z
-  affectedreleases: []
+  - rangetype: range
+    start:
+      major: "1.13"
+      minor: "0"
+    end:
+      major: "1.13"
+      minor: "1"

@@ -5,19 +5,11 @@ import (
 	"testing"
 )
 
-func TestFetch(t *testing.T) {
-	entries, err := FetchIstioPage()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("entries\n%v", entries)
-}
-
 // TODO: cover the test logic.
 func TestFindVunerabilities(t *testing.T) {
 }
 
-func TestSaveYAML(t *testing.T) {
+func TestRefreshDatabase(t *testing.T) {
 	refresh := os.Getenv("REFRESH_CVEDB")
 	if refresh != "true" {
 		t.Skipf("Skip refresh the database, only if REFRESH_CVEDB=true, got %v", refresh)
@@ -32,10 +24,18 @@ func TestSaveYAML(t *testing.T) {
 	}
 }
 
-func TestLoadYAML(t *testing.T) {
-	db, err := LoadDatabase("/tmp/foo.yaml")
+func TestValidateDatabase(t *testing.T) {
+	db, err := LoadDatabase("./database.yaml")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("db %v", db)
+	for ind, e := range db {
+		t.Logf("Validating %v/%v, disclosure id %v", ind+1, len(db), e.DisclosureID)
+		if e.DisclosureID == "" {
+			t.Fatalf("disclosure ID must be non empty")
+		}
+		if len(e.AffectedReleases) == 0 {
+			t.Fatalf("release must be non empty")
+		}
+	}
 }

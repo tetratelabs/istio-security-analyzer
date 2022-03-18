@@ -15,18 +15,18 @@ const (
 
 type CVEEntry struct {
 	// DisclosureID uniquely identifies a single disclosure. For example, "ISTIO-SECURITY-2022-004".
-	DisclosureID string
+	DisclosureID string `yaml:"disclosureID,omitempty"`
 	// Description is a human-readable summary of the CVE.
-	Description string
+	Description string `yaml:"description,omitempty"`
 	// [0, 10].
-	ImpactScore float32
-	Date        time.Time
+	ImpactScore float32   `yaml:"impactScore,omitempty"`
+	Date        time.Time `yaml:"date,omitempty"`
 	// TODO: think deeper on the appropriate way to represent the release set.
 	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
 	// TODO: consider make YAML format and the internal data structure different.
 	// 1.7.8: {}, weird.
 	// IstioReleases    map[string]struct{}
-	AffectedReleases []ReleaseRange
+	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
 }
 
 // ReleaseRange represents a single or a range of Istio releases.

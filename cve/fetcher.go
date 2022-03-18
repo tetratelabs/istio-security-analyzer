@@ -12,14 +12,6 @@ import (
 	"istio.io/pkg/log"
 )
 
-func buildImpactedReleases(releases ...string) map[string]struct{} {
-	out := map[string]struct{}{}
-	for _, r := range releases {
-		out[r] = struct{}{}
-	}
-	return out
-}
-
 func BuildEntryInfoForTest() []model.CVEEntry {
 	return []model.CVEEntry{
 		{
@@ -27,6 +19,7 @@ func BuildEntryInfoForTest() []model.CVEEntry {
 			Description:  "VERY IMPORTANT SEC report: FOO2022!",
 			ImpactScore:  9.9,
 			AffectedReleases: []model.ReleaseRange{
+				// TODO: build testing data by helper func.
 				{
 					RangeType: model.ParticularType,
 					Particular: model.IstioRelease{
@@ -51,15 +44,11 @@ func BuildEntryInfoForTest() []model.CVEEntry {
 			DisclosureID: "ISTIO-SECURITY-2022-004",
 			Description:  "Unauthenticated control plane denial of service attack due to stack exhaustion",
 			ImpactScore:  7.5,
-			// IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
-			// 	"1.11.4", "1.11.5", "1.11.6", "1.11.7"),
 		},
 		{
 			DisclosureID: "ISTIO-SECURITY-2022-003",
 			Description:  "Multiple CVEs related to istiod Denial of Service and Envoy",
 			ImpactScore:  7.5,
-			// IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
-			// 	"1.11.4", "1.11.5", "1.11.6"),
 		},
 	}
 }
@@ -91,13 +80,20 @@ func SaveDatabase(entries []model.CVEEntry, path string) error {
 // FindVunerabilities returns the relevant security disclosures that might the given Istio release.
 func FindVunerabilities(version string) []string {
 	out := []string{}
-	// cves := BuildEntryInfoForTest()
-	// for _, entry := range cves {
-	// _, ok := entry.IstioReleases[version]
-	// if ok {
-	// 	out = append(out, entry.DisclosureID)
-	// }
-	// }
+	err, ver := model.ParseRelease(version)
+	if err != nil {
+		log.Errorf("Failed to parse version %v", version)
+		return out
+	}
+	cves := BuildEntryInfoForTest()
+	for _, entry := range cves {
+		for _, s := range entry.AffectedReleases {
+			if s.Include(ver) {
+				out = append(out, entry.DisclosureID)
+				break
+			}
+		}
+	}
 	return out
 }
 
