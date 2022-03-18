@@ -23,24 +23,43 @@ func buildImpactedReleases(releases ...string) map[string]struct{} {
 func BuildEntryInfoForTest() []model.CVEEntry {
 	return []model.CVEEntry{
 		{
-			DisclosureID:  "ISTIO-SECURITY-2022-FOO",
-			Description:   "VERY IMPORTANT SEC report: FOO2022!",
-			ImpactScore:   9.9,
-			IstioReleases: buildImpactedReleases("1.7.8"),
+			DisclosureID: "ISTIO-SECURITY-2022-FOO",
+			Description:  "VERY IMPORTANT SEC report: FOO2022!",
+			ImpactScore:  9.9,
+			AffectedReleases: []model.ReleaseRange{
+				{
+					RangeType: model.ParticularType,
+					Particular: model.IstioRelease{
+						Major: "1.7",
+						Minor: "8",
+					},
+				},
+				{
+					RangeType: model.IntervalType,
+					Start: model.IstioRelease{
+						Major: "1.11",
+						Minor: "0",
+					},
+					End: model.IstioRelease{
+						Major: "1.11",
+						Minor: "4",
+					},
+				},
+			},
 		},
 		{
 			DisclosureID: "ISTIO-SECURITY-2022-004",
 			Description:  "Unauthenticated control plane denial of service attack due to stack exhaustion",
 			ImpactScore:  7.5,
-			IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
-				"1.11.4", "1.11.5", "1.11.6", "1.11.7"),
+			// IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
+			// 	"1.11.4", "1.11.5", "1.11.6", "1.11.7"),
 		},
 		{
 			DisclosureID: "ISTIO-SECURITY-2022-003",
 			Description:  "Multiple CVEs related to istiod Denial of Service and Envoy",
 			ImpactScore:  7.5,
-			IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
-				"1.11.4", "1.11.5", "1.11.6"),
+			// IstioReleases: buildImpactedReleases("1.11.1", "1.11.2", "1.11.3",
+			// 	"1.11.4", "1.11.5", "1.11.6"),
 		},
 	}
 }
@@ -72,13 +91,13 @@ func SaveDatabase(entries []model.CVEEntry, path string) error {
 // FindVunerabilities returns the relevant security disclosures that might the given Istio release.
 func FindVunerabilities(version string) []string {
 	out := []string{}
-	cves := BuildEntryInfoForTest()
-	for _, entry := range cves {
-		_, ok := entry.IstioReleases[version]
-		if ok {
-			out = append(out, entry.DisclosureID)
-		}
-	}
+	// cves := BuildEntryInfoForTest()
+	// for _, entry := range cves {
+	// _, ok := entry.IstioReleases[version]
+	// if ok {
+	// 	out = append(out, entry.DisclosureID)
+	// }
+	// }
 	return out
 }
 
