@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/incfly/gotmpl/parser"
+	"github.com/incfly/gotmpl/pkg/parser"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
@@ -19,7 +19,7 @@ import (
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
 
-	smodel "github.com/incfly/gotmpl/model"
+	smodel "github.com/incfly/gotmpl/pkg/model"
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"

@@ -28,9 +28,9 @@ package main
 // ./out/scanner --config $HOME/.kube/config --dir ./parser
 
 import (
-	"github.com/incfly/gotmpl/k8s"
-	"github.com/incfly/gotmpl/model"
-	"github.com/incfly/gotmpl/parser"
+	"github.com/incfly/gotmpl/pkg/k8s"
+	"github.com/incfly/gotmpl/pkg/model"
+	"github.com/incfly/gotmpl/pkg/parser"
 
 	"github.com/spf13/cobra"
 	"istio.io/pkg/log"
