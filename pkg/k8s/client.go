@@ -149,14 +149,14 @@ func (c *Client) configByNamespace(gvk istioconfig.GroupVersionKind, ns string) 
 		log.Errorf("Failed to list configuration %v in namespace %v: %v", gvk, ns, err)
 		return out
 	}
-	for _, c := range cfgs {
-		out = append(out, &c)
+	for ind := range cfgs {
+		out = append(out, &cfgs[ind])
 	}
 	return out
 }
 
 func (c *Client) scanAll() []error {
-	log.Debugf("Staring the new round of scanning.")
+	log.Infof("Staring the new round of scanning.")
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
@@ -166,11 +166,11 @@ func (c *Client) scanAll() []error {
 		if !ok {
 			log.Errorf("Failed to convert to namespace: %v", obj)
 		}
-		log.Debugf("Scan namespace %v", ns.Name)
+		log.Infof("Scan namespace %v", ns.Name)
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 	}
 	errs := parser.CheckAll(configs)
-	log.Debugf("Finish scanning.")
+	log.Infof("Finish scanning: number of errors %v", len(errs))
 	return errs
 }

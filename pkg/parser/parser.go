@@ -131,9 +131,7 @@ func decodeConfigYAML(rawYAML string) ([]*istioConfig.Config, error) {
 		}
 		typedSpec := specField.Addr().Interface()
 
-		// let's doing some conversion to get authz and destination rule to v1alpha3.
-
-		configs = append(configs, &istioConfig.Config{
+		cfg := &istioConfig.Config{
 			Meta: istioConfig.Meta{
 				GroupVersionKind: istioConfig.GroupVersionKind{
 					Group:   gvk.Group,
@@ -146,39 +144,48 @@ func decodeConfigYAML(rawYAML string) ([]*istioConfig.Config, error) {
 				Annotations: annotations,
 			},
 			Spec: typedSpec,
-		})
+		}
+		if changed := maybeConverToV1Alpha3(cfg); changed {
+			log.Debugf("config %v-%v/%v transformed to v1alpha3", cfg.GroupVersionKind.String(), cfg.Namespace, cfg.Name)
+		}
+		configs = append(configs, cfg)
 	}
 	return configs, nil
 }
 
+// Returns true if the input config does get converted to v1alpha3 version.
 // We tentatively convert some resources to v1alpha3 version. This free the analyzing logic to
-// deal with two versions together. We don't have to transfer for all, only the config we will
-// process for now.
-// We only have to deal with in the CLI mode since in k8s case, stored version of Istio API is
-// all v1alpha3 in APIServer natively.
-func maybeConverToV1Alpha3(input *istioConfig.Config) {
+// deal with two versions together. Istioctl analyzer does not handle this well either.
+// Instrument this line, showing the `parseContent` returning empty list when the input CR on filesystem
+// are networking v1beta1.
+// https://github.com/istio/istio/blob/aeb20fac89944f8961c0276b3d70e98fd04f30bb/galley/pkg/config/source/kube/inmemory/kubesource.go#L151
+// We only have to deal with in the CLI mode since in k8s case, stored version of Istio API isall
+// v1alpha3 in APIServer natively already.
+func maybeConverToV1Alpha3(input *istioConfig.Config) bool {
 	gvk := input.GroupVersionKind
-	log.Infof("converting %v", input.Name)
+	log.Debugf("converting %v", input.Name)
+	// Only destination rule for now.
 	if gvkEqualsIgnoringVersion(gvk, istiogvk.DestinationRule) {
 		input.GroupVersionKind = istiogvk.DestinationRule
 		drv1, ok := input.Spec.(*networkingv1.DestinationRule)
 		if !ok {
 			log.Errorf("failed to convert to destination rule, do nothing")
-			return
+			return false
 		}
 		drJSON, err := drv1.MarshalJSON()
 		if err != nil {
 			log.Errorf("failed to convert to JSON")
-			return
+			return false
 		}
 		var drAlpha networkingv1alpha3.DestinationRule
 		if err := drAlpha.UnmarshalJSON(drJSON); err != nil {
 			log.Errorf("failed to unmarshal from v1 json bytes: %v", err)
-			return
+			return false
 		}
-		log.Infof("config converted to v1alpha3")
 		input.Spec = &drAlpha
+		return true
 	}
+	return false
 }
 
 func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
@@ -279,6 +286,7 @@ func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	if c == nil {
 		return nil
 	}
+	log.Infof("Checking authorization policy %v/%v", c.Namespace, c.Name)
 	authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
 	if !ok {
 		log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
@@ -345,7 +353,6 @@ func checkDestinationRule(c *istioConfig.Config) error {
 	if c == nil {
 		return nil
 	}
-	maybeConverToV1Alpha3(c)
 	dr, ok := c.Spec.(*networkingv1alpha3.DestinationRule)
 	// TODO(incfly): seems if the YAML is v1alpha3, not able to convert.
 	// TODO: need to try both seems like...
@@ -360,7 +367,7 @@ func checkDestinationRule(c *istioConfig.Config) error {
 	if hasVerificationIssue(dr.GetTrafficPolicy().GetTls()) {
 		return reportError(c, destinationRuleTlsNotVerify)
 	}
-	for _, ps := range dr.GetTrafficPolicy().PortLevelSettings {
+	for _, ps := range dr.GetTrafficPolicy().GetPortLevelSettings() {
 		if hasVerificationIssue(ps.GetTls()) {
 			return reportError(c, destinationRuleTlsNotVerify)
 		}
