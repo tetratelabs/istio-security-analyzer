@@ -30,7 +30,7 @@ lint:
 
 .PHONY: format
 format:
-	@go run $(goimports) -w -local github.com/incfly/gotmpl `find . -name '*.go'`
+	@go run $(goimports) -w -local github.com/tetratelabs/istio-security-scanner `find . -name '*.go'`
 
 
 .PHONY: check

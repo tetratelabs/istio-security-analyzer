@@ -1,4 +1,4 @@
-module github.com/incfly/gotmpl
+module github.com/tetratelabs/istio-security-scanner
 
 go 1.16
 
