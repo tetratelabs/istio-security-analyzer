@@ -142,6 +142,19 @@ func (c *Client) serveHTTPReport() {
 	}
 }
 
+func (c *Client) configByNamespace(gvk istioconfig.GroupVersionKind, ns string) []*istioconfig.Config {
+	out := []*istioconfig.Config{}
+	cfgs, err := c.configStore.List(gvk, ns)
+	if err != nil {
+		log.Errorf("Failed to list configuration %v in namespace %v: %v", gvk, ns, err)
+		return out
+	}
+	for _, c := range cfgs {
+		out = append(out, &c)
+	}
+	return out
+}
+
 func (c *Client) scanAll() []error {
 	log.Debugf("Staring the new round of scanning.")
 	// Iterate namespaces.
@@ -154,14 +167,8 @@ func (c *Client) scanAll() []error {
 			log.Errorf("Failed to convert to namespace: %v", obj)
 		}
 		log.Debugf("Scan namespace %v", ns.Name)
-		authz, err := c.configStore.List(istiogvk.AuthorizationPolicy, ns.Name)
-		if err != nil {
-			log.Errorf("Failed to list configuration authorization policy %v", err)
-			continue
-		}
-		for _, cr := range authz {
-			configs = append(configs, &cr)
-		}
+		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
+		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 	}
 	errs := parser.CheckAll(configs)
 	log.Debugf("Finish scanning.")
