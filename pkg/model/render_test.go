@@ -9,7 +9,7 @@ import "testing"
 // }
 
 func TestValidateDatabase(t *testing.T) {
-	db, err := LoadDatabase("./database.yaml")
+	db, err := LoadDatabase("../../database.yaml")
 	if err != nil {
 		t.Error(err)
 	}
