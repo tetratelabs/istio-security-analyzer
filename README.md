@@ -1,16 +1,19 @@
-# gotmpl
+# Istio Security Analyzer
 
-Golang project template, containing sample build, CI/CD, Github actions for a MVP product.
+This is a tool to analyze Istio security. Roughly the tool covers two aspects
 
-TODO:
+1. Ensure configuration adhering to [Istio Security Best Practice](https://istio.io/latest/docs/ops/best-practices/security).
+1. Checks the running Istio version to see if has any known CVE issues.
 
-- [ ] merge on CI green only.
+The tool can run in two modes: CLI or in-cluster mode. We will explain how to
+run for each mode.
 
+## As a Command Line Tool
 
-Aspects to cover
+TOOD(incfly): document this.
 
-## Test
+## As a In-Cluster Workload
 
-## Lint
+TODO(incfly): document this.
 
-## Github Actions
+We welcome contribution and discussion.
