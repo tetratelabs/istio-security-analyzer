@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -29,8 +30,8 @@ import (
 type Client struct {
 	configStore model.ConfigStoreCache
 	kubeClient  kubelib.ExtendedClient
-	nsInformer  cache.SharedIndexInformer
-	nsHandler   cache.ResourceEventHandler
+	nsInformer cache.SharedIndexInformer
+	nsHandler  cache.ResourceEventHandler
 
 	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
@@ -71,6 +72,7 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	factory := informers.NewSharedInformerFactoryWithOptions(istioKubeClient, time.Second*30,
 		informers.WithNamespace(meta_v1.NamespaceAll))
 	out := &Client{
+		kubeClient: istioKubeClient,
 		nsInformer: factory.Core().V1().Namespaces().Informer(),
 		nsHandler:  &namespaceHandler{},
 	}
@@ -171,6 +173,72 @@ func (c *Client) scanAll() []error {
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 	}
 	errs := parser.CheckAll(configs)
+	if err := c.checkRBACForGateway(); err != nil {
+		errs = append(errs, err)
+	}
 	log.Infof("Finish scanning: number of errors %v", len(errs))
 	return errs
+}
+
+// checkRBACForGateway returns error if there's no k8s rbac configured for Istio gateway creation.
+// https://istio.io/latest/docs/ops/best-practices/security/#restrict-gateway-creation-privileges.
+// TODO(incfly): use informer handler to make perf better.
+func (c *Client) checkRBACForGateway() error {
+	bindings, err := c.kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), meta_v1.ListOptions{})
+	if err != nil {
+		log.Errorf("Failed to get the bindings: %v", err)
+		return nil
+	}
+	roles, err := c.kubeClient.RbacV1().ClusterRoles().List(context.Background(), meta_v1.ListOptions{})
+	if err != nil {
+		log.Errorf("Failed to list %v", err)
+		return nil
+	}
+	// Find roles that controlling istio gateway.
+	relevantRoles := map[string]struct{}{}
+	for _, role := range roles.Items {
+		for _, rule := range role.Rules {
+			groupFound := false
+			for _, group := range rule.APIGroups {
+				if group == "networking.istio.io" {
+					groupFound = true
+					break
+				}
+			}
+			resourceFound := false
+			// If relevant, see if gateway is in the list.
+			if groupFound {
+				for _, res := range rule.Resources {
+					if res == "gateways" || res == "*" {
+						resourceFound = true
+						break
+					}
+				}
+			}
+			verbFound := false
+			if resourceFound {
+				for _, verb := range rule.Verbs {
+					if verb == "create" {
+						verbFound = true
+						break
+					}
+				}
+			}
+			if groupFound && resourceFound && verbFound {
+				relevantRoles[role.Name] = struct{}{}
+			}
+		}
+	}
+	log.Debugf("The relevant roles build up: %v", relevantRoles)
+	if len(relevantRoles) != 0 {
+		for _, binding := range bindings.Items {
+			roleRef := binding.RoleRef.Name
+			_, ok := relevantRoles[roleRef]
+			if ok {
+				log.Infof("Found role %v, role binding %v controlling istio gateway creation", roleRef, binding.Name)
+				return nil
+			}
+		}
+	}
+	return errors.New("failed to find cluster role and role bindings to control istio gateway creation")
 }

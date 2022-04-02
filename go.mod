@@ -10,10 +10,11 @@ require (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.0 // indirect
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/openshift/api v3.9.1-0.20191008181517-e4fd21196097+incompatible // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	github.com/stretchr/testify v1.7.0
+	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20220308015141-dd5d97b643c9
 	k8s.io/api v0.23.4
 	k8s.io/apimachinery v0.23.4
