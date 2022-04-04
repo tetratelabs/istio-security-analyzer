@@ -182,7 +182,12 @@ func (c *Client) configByNamespace(gvk istioconfig.GroupVersionKind, ns string) 
 }
 
 func (c *Client) scanAll() []error {
-	log.Infof("Staring the new round of scanning.")
+	log.Infof("Ensure the config store has synced.")
+	for !c.configStore.HasSynced() {
+		log.Infof("Kubernetes config store not synced yet, waiting.")
+		time.Sleep(time.Second * 3)
+	}
+	log.Infof("Staring the scanning.")
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()

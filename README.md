@@ -5,15 +5,22 @@ This is a tool to analyze Istio security. Roughly the tool covers two aspects
 1. Ensure configuration adhering to [Istio Security Best Practice](https://istio.io/latest/docs/ops/best-practices/security).
 1. Checks the running Istio version to see if has any known CVE issues.
 
-The tool can run in two modes: CLI or in-cluster mode. We will explain how to
-run for each mode.
+## Get Started
 
-## As a Command Line Tool
+Install Istio.
 
-TOOD(incfly): document this.
+```sh
+istioctl install --set profile=demo
+```
 
-## As a In-Cluster Workload
+Apply some sample configuration. To illustrate, we provide some sample problematic configuration.
 
-TODO(incfly): document this.
+```sh
+kubectl apply -f ./pkg/parser/testdata/
+```
 
-We welcome contribution and discussion.
+Run the tool.
+
+```sh
+make build && ./out/scanner
+```
