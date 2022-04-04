@@ -207,6 +207,11 @@ func CheckAll(configs []*istioConfig.Config) []error {
 				out = append(out, err)
 			}
 		}
+		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.Gateway) {
+			if err := checkGateway(c); err != nil {
+				out = append(out, err)
+			}
+		}
 	}
 	return out
 }
@@ -354,14 +359,8 @@ func checkDestinationRule(c *istioConfig.Config) error {
 		return nil
 	}
 	dr, ok := c.Spec.(*networkingv1alpha3.DestinationRule)
-	// TODO(incfly): seems if the YAML is v1alpha3, not able to convert.
-	// TODO: need to try both seems like...
-	// v1beta1 on cli mode; v1alpha3 in cluster mode.
-	// istioctl analyzer does not support v1beta1 resources in filesystem either.
-	// Solution
 	if !ok {
-		_, ok1 := c.Spec.(*networkingv1.DestinationRule)
-		log.Errorf("unable to convert to istio destination rule: ok1: %v\n%v", ok1, c.Spec)
+		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if hasVerificationIssue(dr.GetTrafficPolicy().GetTls()) {
@@ -375,6 +374,26 @@ func checkDestinationRule(c *istioConfig.Config) error {
 	for _, ss := range dr.GetSubsets() {
 		if hasVerificationIssue(ss.GetTrafficPolicy().GetTls()) {
 			return reportError(c, destinationRuleTlsNotVerify)
+		}
+	}
+	return nil
+}
+
+func checkGateway(c *istioConfig.Config) error {
+	if c == nil {
+		return nil
+	}
+	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
+	if !ok {
+		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		return nil
+	}
+	for _, srv := range gw.Servers {
+		for _, host := range srv.Hosts {
+			if host == "*" {
+				return reportError(c, `host "*" is overly broad, consider to assign a`+
+					`specific domain name such as foo.example.com`)
+			}
 		}
 	}
 	return nil

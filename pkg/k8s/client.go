@@ -30,8 +30,8 @@ import (
 type Client struct {
 	configStore model.ConfigStoreCache
 	kubeClient  kubelib.ExtendedClient
-	nsInformer cache.SharedIndexInformer
-	nsHandler  cache.ResourceEventHandler
+	nsInformer  cache.SharedIndexInformer
+	nsHandler   cache.ResourceEventHandler
 
 	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
@@ -171,6 +171,7 @@ func (c *Client) scanAll() []error {
 		log.Infof("Scan namespace %v", ns.Name)
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
+		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 	}
 	errs := parser.CheckAll(configs)
 	if err := c.checkRBACForGateway(); err != nil {

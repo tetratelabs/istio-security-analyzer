@@ -51,7 +51,8 @@ var (
 			})
 		},
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			log.Configure(&loggingOptions)
+			// TODO(incfly): this seems returning an error if print out. Check why.
+			_ = log.Configure(&loggingOptions)
 			return nil
 		},
 	}
@@ -97,8 +98,6 @@ func init() {
 	flags.StringVarP(&configDir, "dir", "d", ".", "The input directory storing Istio YAML configuration.")
 	flags.StringVarP(&kubeConfigPath, "config", "c", "", "The path to the kubeconfig of a cluster to be analyzed.")
 	flags.StringVarP(&executeMode, "mode", "m", "cli", "The mode the scanner tool to run, valid options: cluster | cli.")
-
-	// loggingOptions.SetOutputLevel("kube", log.ErrorLevel)
 	loggingOptions.AttachCobraFlags(scannerCmd)
 }
 
