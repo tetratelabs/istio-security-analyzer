@@ -27,6 +27,7 @@ import (
 
 var (
 	kubeConfigPath = "."
+	runOnce        = false
 	loggingOptions log.Options
 
 	scannerCmd = &cobra.Command{
@@ -51,7 +52,7 @@ type analyerOptions struct {
 }
 
 func RunAll(options *analyerOptions) {
-	c, err := k8s.NewClient(options.KubeConfig)
+	c, err := k8s.NewClient(options.KubeConfig, runOnce)
 	if err != nil {
 		log.Fatalf("error %v", err)
 	}
@@ -62,6 +63,7 @@ func RunAll(options *analyerOptions) {
 func init() {
 	flags := scannerCmd.Flags()
 	flags.StringVarP(&kubeConfigPath, "config", "c", "~/.kube/config", "The path to the kubeconfig of a cluster to be analyzed.")
+	flags.BoolVar(&runOnce, "once", true, "Whether running the scanning only one shot. If false, will continue in a loop")
 	loggingOptions.AttachCobraFlags(scannerCmd)
 }
 

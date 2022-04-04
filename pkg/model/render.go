@@ -11,11 +11,14 @@ import (
 )
 
 const (
-	reportTemplate = `Istio Security Scanning Report
+	reportTemplate = `==========================================
+    Istio Security Scanning Report
 
-Control Plane Version: {{ .IstioVersion }}
+Control Plane Version
+- {{ .IstioVersion }}
 {{if ne .DistrolessIssue ""}}
-Distroless Warning: {{ .DistrolessIssue }}
+Distroless Warning
+- {{ .DistrolessIssue }}
 {{end}}
 
 CVE Report
@@ -25,6 +28,7 @@ CVE Report
 Config Warnings
 {{range .ConfigWarnings}}- {{ . }}
 {{end}}
+==========================================
 `
 )
 
@@ -39,7 +43,6 @@ func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 	for _, e := range configIssues {
 		warningMessage = append(warningMessage, e.Error())
 	}
-	// log.Infof("jianfeih found issues: %v, distroless issue %v", configIssues, )
 	distroMessage := ""
 	if report.DistrolessIssue != nil {
 		distroMessage = report.DistrolessIssue.Error()

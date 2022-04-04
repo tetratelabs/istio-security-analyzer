@@ -24,3 +24,6 @@ Run the tool.
 ```sh
 make build && ./out/scanner
 ```
+
+TODO(incfly): Change to default istio (better to be certain version), run;
+Explain issues, apply config, and then run again.

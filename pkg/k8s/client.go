@@ -33,7 +33,7 @@ type Client struct {
 	kubeClient  kubelib.ExtendedClient
 	nsInformer  cache.SharedIndexInformer
 	nsHandler   cache.ResourceEventHandler
-
+	runOnce     bool
 	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
 	istioReport  smodel.IstioControlPlaneReport
@@ -65,7 +65,7 @@ func istioClientFromKubeConfig(config string) (kubelib.ExtendedClient, error) {
 	return istioKubeClient, nil
 }
 
-func NewClient(kubeConfigPath string) (*Client, error) {
+func NewClient(kubeConfigPath string, runOnce bool) (*Client, error) {
 	istioKubeClient, err := istioClientFromKubeConfig(kubeConfigPath)
 	if err != nil {
 		return nil, err
@@ -73,6 +73,7 @@ func NewClient(kubeConfigPath string) (*Client, error) {
 	factory := informers.NewSharedInformerFactoryWithOptions(istioKubeClient, time.Second*30,
 		informers.WithNamespace(meta_v1.NamespaceAll))
 	out := &Client{
+		runOnce:    runOnce,
 		kubeClient: istioKubeClient,
 		nsInformer: factory.Core().V1().Namespaces().Informer(),
 		nsHandler:  &namespaceHandler{},
@@ -106,13 +107,22 @@ func IstioVersion(kubeConfig string) (string, error) {
 }
 
 func (c *Client) Run(stopCh chan struct{}) {
-	log.Infof("Starting kubernetes client for scanning.")
+	log.Infof("Starting Kubernetes cluster for Istio Security scanning.")
 	go c.configStore.Run(stopCh)
 	go c.kubeClient.RunAndWait(stopCh)
-	go c.serveHTTPReport()
-	for {
+	if c.runOnce {
 		c.scanAll()
-		time.Sleep(time.Second * 10)
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		report := smodel.RenderReport(c.istioReport, c.configIssues)
+		log.Infof("Report\n%v", report)
+		stopCh <- struct{}{}
+	} else {
+		go c.serveHTTPReport()
+		for {
+			c.scanAll()
+			time.Sleep(time.Second * 10)
+		}
 	}
 }
 
@@ -202,7 +212,7 @@ func (c *Client) scanAll() {
 		DistrolessIssue: c.checkDistrolessImage(),
 	}
 	c.configIssues = errs
-	log.Infof("Updated Istio Control Plane report %v, configIssues %v", c.istioReport, c.configIssues)
+	log.Debugf("Updated Istio Control Plane report %v, configIssues %v", c.istioReport, c.configIssues)
 	c.mu.Unlock()
 }
 
