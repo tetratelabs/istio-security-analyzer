@@ -36,7 +36,6 @@ type Client struct {
 
 	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
-	istioVersion string
 	istioReport  smodel.IstioControlPlaneReport
 	configIssues []error
 }
@@ -112,25 +111,7 @@ func (c *Client) Run(stopCh chan struct{}) {
 	go c.kubeClient.RunAndWait(stopCh)
 	go c.serveHTTPReport()
 	for {
-		istioVersion := "undefined"
-		warnings := c.scanAll()
-		// Hard code as istio-system for now. May need to change for multi revision deployments.
-		v, err := c.kubeClient.GetIstioVersions(context.TODO(), "istio-system")
-		if err != nil {
-			log.Errorf("Failed to extract istio version: %v", err)
-		} else {
-			istioVersion = (*v)[0].Info.Version
-		}
-		c.mu.Lock()
-		c.istioReport = smodel.IstioControlPlaneReport{
-			IstioVersion:    istioVersion,
-			DistrolessIssue: c.checkDistrolessImage(),
-		}
-		c.istioVersion = istioVersion
-		c.configIssues = warnings
-		log.Debugf("Updated Istio version %v, configIssues %v", istioVersion, c.configIssues)
-		c.mu.Unlock()
-
+		c.scanAll()
 		time.Sleep(time.Second * 10)
 	}
 }
@@ -139,7 +120,7 @@ func (c *Client) Run(stopCh chan struct{}) {
 func (c *Client) checkDistrolessImage() error {
 	pods, err := c.kubeClient.GetIstioPods(context.TODO(), "istio-system", map[string]string{})
 	if err != nil {
-		log.Errorf("jianfeih debug failed to get istio pods %v", err)
+		log.Errorf("Failed to get Istio pods %v", err)
 		return nil
 	}
 	for _, po := range pods {
@@ -150,7 +131,6 @@ func (c *Client) checkDistrolessImage() error {
 			}
 		}
 	}
-	// pods[0].Spec.Containers[0].Image
 	return nil
 }
 
@@ -181,7 +161,7 @@ func (c *Client) configByNamespace(gvk istioconfig.GroupVersionKind, ns string) 
 	return out
 }
 
-func (c *Client) scanAll() []error {
+func (c *Client) scanAll() {
 	log.Infof("Ensure the config store has synced.")
 	for !c.configStore.HasSynced() {
 		log.Infof("Kubernetes config store not synced yet, waiting.")
@@ -197,7 +177,7 @@ func (c *Client) scanAll() []error {
 		if !ok {
 			log.Errorf("Failed to convert to namespace: %v", obj)
 		}
-		log.Infof("Scan namespace %v", ns.Name)
+		log.Debugf("Scan namespace %v", ns.Name)
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
@@ -206,8 +186,24 @@ func (c *Client) scanAll() []error {
 	if err := c.checkRBACForGateway(); err != nil {
 		errs = append(errs, err)
 	}
-	log.Infof("Finish scanning: number of errors %v", len(errs))
-	return errs
+
+	istioVersion := "undefined"
+	// Hard code as istio-system for now. May need to change for multi revision deployments.
+	v, err := c.kubeClient.GetIstioVersions(context.TODO(), "istio-system")
+	if err != nil {
+		log.Errorf("Failed to extract istio version: %v", err)
+	} else {
+		istioVersion = (*v)[0].Info.Version
+	}
+
+	c.mu.Lock()
+	c.istioReport = smodel.IstioControlPlaneReport{
+		IstioVersion:    istioVersion,
+		DistrolessIssue: c.checkDistrolessImage(),
+	}
+	c.configIssues = errs
+	log.Infof("Updated Istio Control Plane report %v, configIssues %v", c.istioReport, c.configIssues)
+	c.mu.Unlock()
 }
 
 // checkRBACForGateway returns error if there's no k8s rbac configured for Istio gateway creation.
@@ -265,7 +261,7 @@ func (c *Client) checkRBACForGateway() error {
 			roleRef := binding.RoleRef.Name
 			_, ok := relevantRoles[roleRef]
 			if ok {
-				log.Infof("Found role %v, role binding %v controlling istio gateway creation", roleRef, binding.Name)
+				log.Debugf("Found role %v, role binding %v controlling istio gateway creation", roleRef, binding.Name)
 				return nil
 			}
 		}

@@ -238,7 +238,7 @@ func CheckFileSystem(dir string) []error {
 			log.Debugf("failed to read the file: %v", err)
 			return nil
 		}
-		log.Infof("Checking Istio config file: %v", path)
+		log.Debugf("Checking Istio config file: %v", path)
 		errs := CheckAll(configs)
 		for _, e := range errs {
 			if e != nil {
@@ -291,7 +291,7 @@ func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	if c == nil {
 		return nil
 	}
-	log.Infof("Checking authorization policy %v/%v", c.Namespace, c.Name)
+	log.Debugf("Checking authorization policy %v/%v", c.Namespace, c.Name)
 	authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
 	if !ok {
 		log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
