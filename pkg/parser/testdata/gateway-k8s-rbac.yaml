@@ -1,0 +1,33 @@
+# this configuration shows an example of necessary gateway configuration to control the istio gateway config creation.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: istiod
+    install.operator.istio.io/owning-resource-namespace: istio-system
+    istio.io/rev: default
+    operator.istio.io/component: Base
+    operator.istio.io/managed: Reconcile
+    operator.istio.io/version: 1.12.1
+    release: istio
+  name: istio-gateway-cr-creator
+rules:
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - '*'
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: allow-ci-to-create-istio-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: istio-gateway-cr-creator
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: istio-system

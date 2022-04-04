@@ -29,6 +29,15 @@ type CVEEntry struct {
 	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
 }
 
+// IstioControlPlaneReport contains relevant issues for Istio Control Plane.
+// For example, CVE of the Istio Control Plane; Should consider distroless
+// image.
+type IstioControlPlaneReport struct {
+	IstioVersion string
+	// DistrolessIssue specifies the potential upgradable distroless if possible.
+	DistrolessIssue error
+}
+
 // ReleaseRange represents a single or a range of Istio releases.
 type ReleaseRange struct {
 	RangeType ReleaseRangeType
@@ -83,9 +92,10 @@ func (rs ReleaseRange) Include(r IstioRelease) bool {
 	return (r.IsAfter(rs.Start) || r == rs.Start) && (r.IsBefore(rs.End) || r == rs.End)
 }
 
-// SecurityReport contains a comprehensive summary of the scanning results.
-type SecurityReport struct {
-	IstioVersion   string
-	Vunerabilities []*CVEEntry
-	ConfigWarnings []string
+// securityReportParams contains a comprehensive summary of the scanning results.
+type securityReportParams struct {
+	IstioVersion    string
+	DistrolessIssue string
+	Vunerabilities  []*CVEEntry
+	ConfigWarnings  []string
 }

@@ -13,18 +13,23 @@ import (
 const (
 	reportTemplate = `Istio Security Scanning Report
 
-Config Warnings
-{{range .ConfigWarnings}}- {{ .  }}
+Control Plane Version: {{ .IstioVersion }}
+{{if ne .DistrolessIssue ""}}
+Distroless Warning: {{ .DistrolessIssue }}
 {{end}}
 
 CVE Report
 {{range .Vunerabilities}}- {{ .DisclosureID  }}
 {{end}}
+
+Config Warnings
+{{range .ConfigWarnings}}- {{ . }}
+{{end}}
 `
 )
 
 // RenderReport the security information into a HTML page.
-func RenderReport(istioVersion string, configIssues []error) string {
+func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 	t, err := template.New("webpage").Parse(string(reportTemplate))
 	if err != nil {
 		log.Fatalf("failed create render template: %v", err)
@@ -34,11 +39,16 @@ func RenderReport(istioVersion string, configIssues []error) string {
 	for _, e := range configIssues {
 		warningMessage = append(warningMessage, e.Error())
 	}
-	log.Infof("jianfeih found issues: %v", configIssues)
-	err = t.Execute(bw, SecurityReport{
-		IstioVersion:   istioVersion,
-		ConfigWarnings: warningMessage,
-		Vunerabilities: FindVunerabilities(istioVersion),
+	// log.Infof("jianfeih found issues: %v, distroless issue %v", configIssues, )
+	distroMessage := ""
+	if report.DistrolessIssue != nil {
+		distroMessage = report.DistrolessIssue.Error()
+	}
+	err = t.Execute(bw, securityReportParams{
+		IstioVersion:    report.IstioVersion,
+		ConfigWarnings:  warningMessage,
+		DistrolessIssue: distroMessage,
+		Vunerabilities:  FindVunerabilities(report.IstioVersion),
 	})
 	if err != nil {
 		log.Fatalf("failed to render template: %v", err)

@@ -29,8 +29,6 @@ package main
 
 import (
 	"github.com/tetratelabs/istio-security-scanner/pkg/k8s"
-	"github.com/tetratelabs/istio-security-scanner/pkg/model"
-	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
 
 	"github.com/spf13/cobra"
 	"istio.io/pkg/log"
@@ -80,16 +78,16 @@ func RunAll(options *Option) {
 		return
 	}
 	// CLI mode.
-	configIssues := parser.CheckFileSystem(configDir)
-	ver, err := k8s.IstioVersion(options.KubeConfig)
-	if err != nil {
-		log.Fatalf("failed to get Istio version: %v", configIssues)
-	}
-	report := model.RenderReport(
-		ver,
-		configIssues,
-	)
-	log.Info(report)
+	// configIssues := parser.CheckFileSystem(configDir)
+	// ver, err := k8s.IstioVersion(options.KubeConfig)
+	// if err != nil {
+	// 	log.Fatalf("failed to get Istio version: %v", configIssues)
+	// }
+	// report := model.RenderReport(
+	// 	ver,
+	// 	configIssues,
+	// )
+	// log.Info(report)
 }
 
 func init() {
@@ -97,7 +95,7 @@ func init() {
 
 	flags.StringVarP(&configDir, "dir", "d", ".", "The input directory storing Istio YAML configuration.")
 	flags.StringVarP(&kubeConfigPath, "config", "c", "", "The path to the kubeconfig of a cluster to be analyzed.")
-	flags.StringVarP(&executeMode, "mode", "m", "cli", "The mode the scanner tool to run, valid options: cluster | cli.")
+	flags.StringVarP(&executeMode, "mode", "m", "cluster", "The mode the scanner tool to run, valid options: cluster | cli.")
 	loggingOptions.AttachCobraFlags(scannerCmd)
 }
 

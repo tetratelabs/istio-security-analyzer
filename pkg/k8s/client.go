@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,7 @@ type Client struct {
 	// mutex protects the access to `istioVersion` and `configIssues`.
 	mu           sync.Mutex
 	istioVersion string
+	istioReport  smodel.IstioControlPlaneReport
 	configIssues []error
 }
 
@@ -119,21 +121,43 @@ func (c *Client) Run(stopCh chan struct{}) {
 		} else {
 			istioVersion = (*v)[0].Info.Version
 		}
-
 		c.mu.Lock()
+		c.istioReport = smodel.IstioControlPlaneReport{
+			IstioVersion:    istioVersion,
+			DistrolessIssue: c.checkDistrolessImage(),
+		}
 		c.istioVersion = istioVersion
 		c.configIssues = warnings
-		log.Debugf("Updated Istio version %v, configIssues %v", c.istioVersion, c.configIssues)
+		log.Debugf("Updated Istio version %v, configIssues %v", istioVersion, c.configIssues)
 		c.mu.Unlock()
 
 		time.Sleep(time.Second * 10)
 	}
 }
 
+// checkDistrolessImage returns error if the control plane pods use a non distroless image.
+func (c *Client) checkDistrolessImage() error {
+	pods, err := c.kubeClient.GetIstioPods(context.TODO(), "istio-system", map[string]string{})
+	if err != nil {
+		log.Errorf("jianfeih debug failed to get istio pods %v", err)
+		return nil
+	}
+	for _, po := range pods {
+		for _, c := range po.Spec.Containers {
+			if !strings.Contains(c.Image, "distroless") {
+				return fmt.Errorf(
+					"pod %v can uses a distroless image for better security, current %v", po.Name, c.Image)
+			}
+		}
+	}
+	// pods[0].Spec.Containers[0].Image
+	return nil
+}
+
 func (c *Client) reportSecuritySummary(w http.ResponseWriter, req *http.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	report := smodel.RenderReport(c.istioVersion, c.configIssues)
+	report := smodel.RenderReport(c.istioReport, c.configIssues)
 	_, _ = w.Write([]byte(report))
 }
 
