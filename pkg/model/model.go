@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,9 +24,6 @@ type CVEEntry struct {
 	Date        time.Time `yaml:"date,omitempty"`
 	// TODO: think deeper on the appropriate way to represent the release set.
 	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
-	// TODO: consider make YAML format and the internal data structure different.
-	// 1.7.8: {}, weird.
-	// IstioReleases    map[string]struct{}
 	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
 }
 
@@ -51,26 +49,28 @@ type ReleaseRange struct {
 }
 
 type IstioRelease struct {
-	Major string
-	Minor string
+	// Example, 9 for 1.9.2 release.
+	Major int
+	// Example, 2 for 1.9.2 release.
+	Minor int
 }
 
 func (r IstioRelease) String() string {
-	return fmt.Sprintf("%v.%v", r.Major, r.Minor)
+	return fmt.Sprintf("1.%v.%v", r.Major, r.Minor)
 }
 
-func (r IstioRelease) IsBefore(other IstioRelease) bool {
+func (r IstioRelease) BeforeOrEquals(other IstioRelease) bool {
 	if r.Major < other.Major {
 		return true
 	}
 	if r.Major == other.Major {
 		return r.Minor < other.Minor
 	}
-	return false
+	return r.Major == other.Major && r.Minor == other.Minor
 }
 
-func (r IstioRelease) IsAfter(other IstioRelease) bool {
-	return other.IsBefore(r)
+func (r IstioRelease) AfterOrEquals(other IstioRelease) bool {
+	return other.BeforeOrEquals(r)
 }
 
 func ParseRelease(s string) (error, IstioRelease) {
@@ -79,17 +79,22 @@ func ParseRelease(s string) (error, IstioRelease) {
 	if len(elm) != 3 {
 		return fmt.Errorf("failed to parse release, expected x.y.z, got %v", s), out
 	}
-	// TODO(incfly): check the element is actual numeric.
-	out.Major = fmt.Sprintf("%v.%v", elm[0], elm[1])
-	out.Minor = elm[2]
-	return nil, out
+	major, err := strconv.Atoi(elm[1])
+	if err != nil {
+		return err, out
+	}
+	minor, err := strconv.Atoi(elm[2])
+	if err != nil {
+		return err, out
+	}
+	return nil, IstioRelease{Major: major, Minor: minor}
 }
 
 func (rs ReleaseRange) Include(r IstioRelease) bool {
 	if rs.RangeType == ParticularType {
 		return rs.Particular == r
 	}
-	return (r.IsAfter(rs.Start) || r == rs.Start) && (r.IsBefore(rs.End) || r == rs.End)
+	return (r.AfterOrEquals(rs.Start) || r == rs.Start) && (r.BeforeOrEquals(rs.End) || r == rs.End)
 }
 
 // securityReportParams contains a comprehensive summary of the scanning results.

@@ -212,6 +212,7 @@ func CheckAll(configs []*istioConfig.Config) []error {
 				out = append(out, err)
 			}
 		}
+		// check gateway & virtualservice.
 	}
 	return out
 }

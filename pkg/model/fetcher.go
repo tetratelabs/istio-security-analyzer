@@ -22,19 +22,19 @@ func BuildEntryInfoForTest() []CVEEntry {
 				{
 					RangeType: ParticularType,
 					Particular: IstioRelease{
-						Major: "1.7",
-						Minor: "8",
+						Major: 7,
+						Minor: 8,
 					},
 				},
 				{
 					RangeType: IntervalType,
 					Start: IstioRelease{
-						Major: "1.11",
-						Minor: "0",
+						Major: 11,
+						Minor: 0,
 					},
 					End: IstioRelease{
-						Major: "1.11",
-						Minor: "4",
+						Major: 11,
+						Minor: 4,
 					},
 				},
 			},

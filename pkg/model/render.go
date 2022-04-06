@@ -67,7 +67,7 @@ func FindVunerabilities(version string) []*CVEEntry {
 		log.Errorf("Failed to parse version %v", version)
 		return out
 	}
-	cves, err := LoadDatabase("./database.yaml")
+	cves, err := LoadDatabase("../../database.yaml")
 	if err != nil {
 		log.Errorf("Failed to load database: %v", err)
 		return out
