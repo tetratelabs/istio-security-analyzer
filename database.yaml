@@ -302,46 +302,227 @@
     end:
       major: 6
       minor: 1
-# - disclosureID: ISTIO-SECURITY-2020-005
-#   description: Denial of service affecting telemetry v2
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2020-004
-#   description: Default Kiali security configuration allows full control of mesh
-#   impactScore: 8.7
-# - disclosureID: ISTIO-SECURITY-2020-003
-#   description: Two uncontrolled resource consumption and two incorrect access control
-#     vulnerabilities in Envoy
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2020-001
-#   description: Authentication Policy bypass
-#   impactScore: 9
-# - disclosureID: ISTIO-SECURITY-2020-002
-#   description: Mixer policy check bypass caused by improperly accepting certain request
-#     headers
-#   impactScore: 7.4
-# - disclosureID: ISTIO-SECURITY-2019-007
-#   description: Heap overflow and improper input validation in Envoy
-#   impactScore: 9
-# - disclosureID: ISTIO-SECURITY-2019-006
-#   description: Denial of service
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2019-005
-#   description: Denial of service caused by the presence of numerous HTTP headers in
-#     client requests
-#   impactScore: 7.5
-# - disclosureID: Istio 1.2.4 sidecar image vulnerability
-#   description: An erroneous 1.2.4 sidecar image was available due to a faulty release
-#     operation
-# - disclosureID: ISTIO-SECURITY-2019-004
-#   description: Multiple denial of service vulnerabilities related to HTTP2 support
-#     in Envoy
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2019-003
-#   description: Denial of service in regular expression parsing
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2019-002
-#   description: Denial of service affecting JWT access token parsing
-#   impactScore: 7.5
-# - disclosureID: ISTIO-SECURITY-2019-001
-#   description: Incorrect access control
-#   impactScore: 8.9
+- disclosureID: ISTIO-SECURITY-2020-005
+  description: Denial of service affecting telemetry v2
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 4
+      minor: 0
+    end:
+      major: 4
+      minor: 8
+  - rangetype: range
+    start:
+      major: 5
+      minor: 0
+    end:
+      major: 5
+      minor: 3
+- disclosureID: ISTIO-SECURITY-2020-004
+  description: Default Kiali security configuration allows full control of mesh
+  impactScore: 8.7
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 4
+      minor: 0
+    end:
+      major: 4
+      minor: 6
+  - rangetype: range
+    start:
+      major: 5
+      minor: 0
+    end:
+      major: 5
+      minor: 99 # workaround.
+- disclosureID: ISTIO-SECURITY-2020-003
+  description: Two uncontrolled resource consumption and two incorrect access control
+    vulnerabilities in Envoy
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 4
+      minor: 0
+    end:
+      major: 4
+      minor: 5
+  impactScore: 7.5
+- disclosureID: ISTIO-SECURITY-2020-001
+  description: Authentication Policy bypass
+  impactScore: 9
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 3
+      minor: 0
+    end:
+      major: 3
+      minor: 7
+  - rangetype: range
+    start:
+      major: 4
+      minor: 0
+    end:
+      major: 4
+      minor: 3
+- disclosureID: ISTIO-SECURITY-2020-002
+  description: Mixer policy check bypass caused by improperly accepting certain request
+    headers
+  impactScore: 7.4
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 3
+      minor: 0
+    end:
+      major: 3
+      minor: 6
+- disclosureID: ISTIO-SECURITY-2019-007
+  description: Heap overflow and improper input validation in Envoy
+  impactScore: 9
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 9
+  - rangetype: range
+    start:
+      major: 3
+      minor: 0
+    end:
+      major: 3
+      minor: 5
+  - rangetype: range
+    start:
+      major: 4
+      minor: 0
+    end:
+      major: 3
+      minor: 1
+- disclosureID: ISTIO-SECURITY-2019-006
+  description: Denial of service
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 3
+      minor: 0
+    end:
+      major: 3
+      minor: 4
+- disclosureID: ISTIO-SECURITY-2019-005
+  description: Denial of service caused by the presence of numerous HTTP headers in
+    client requests
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 1
+      minor: 0
+    end:
+      major: 1
+      minor: 15
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 6
+  - rangetype: range
+    start:
+      major: 3
+      minor: 0
+    end:
+      major: 3
+      minor: 1
+- disclosureID: Istio 1.2.4 sidecar image vulnerability
+  description: An erroneous 1.2.4 sidecar image was available due to a faulty release
+    operation
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 4
+- disclosureID: ISTIO-SECURITY-2019-004
+  description: Multiple denial of service vulnerabilities related to HTTP2 support
+    in Envoy
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 1
+      minor: 0
+    end:
+      major: 1
+      minor: 12
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 3
+- disclosureID: ISTIO-SECURITY-2019-003
+  description: Denial of service in regular expression parsing
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 1
+      minor: 0
+    end:
+      major: 1
+      minor: 12
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 3
+- disclosureID: ISTIO-SECURITY-2019-002
+  description: Denial of service affecting JWT access token parsing
+  impactScore: 7.5
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 0
+      minor: 0
+    end:
+      major: 0
+      minor: 8
+  - rangetype: range
+    start:
+      major: 1
+      minor: 0
+    end:
+      major: 1
+      minor: 9
+  - rangetype: range
+    start:
+      major: 2
+      minor: 0
+    end:
+      major: 2
+      minor: 1
+- disclosureID: ISTIO-SECURITY-2019-001
+  description: Incorrect access control
+  impactScore: 8.9
+  affectedReleases:
+  - rangetype: range
+    start:
+      major: 1
+      minor: 0
+    end:
+      major: 1
+      minor: 6
