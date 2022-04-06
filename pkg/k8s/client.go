@@ -173,6 +173,7 @@ func (c *Client) configByNamespace(gvk istioconfig.GroupVersionKind, ns string) 
 
 func (c *Client) scanAll() {
 	log.Infof("Ensure the config store has synced.")
+	// Wait till the configuration is synced.
 	for !c.configStore.HasSynced() {
 		log.Infof("Kubernetes config store not synced yet, waiting.")
 		time.Sleep(time.Second * 3)

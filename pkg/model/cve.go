@@ -1,6 +1,7 @@
 package model
 
 import (
+	_ "embed"
 	"fmt"
 	"io/ioutil"
 	"net/http"

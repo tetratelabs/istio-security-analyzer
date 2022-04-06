@@ -2,8 +2,8 @@ package model
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
-	"io/ioutil"
 	"text/template"
 
 	yaml "gopkg.in/yaml.v2"
@@ -32,6 +32,9 @@ Config Warnings
 `
 )
 
+//go:embed database.yaml
+var cveDatabaseYAML string
+
 // RenderReport the security information into a HTML page.
 func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 	t, err := template.New("webpage").Parse(string(reportTemplate))
@@ -47,12 +50,15 @@ func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 	if report.DistrolessIssue != nil {
 		distroMessage = report.DistrolessIssue.Error()
 	}
-	err = t.Execute(bw, securityReportParams{
+	params := securityReportParams{
 		IstioVersion:    report.IstioVersion,
 		ConfigWarnings:  warningMessage,
 		DistrolessIssue: distroMessage,
 		Vunerabilities:  FindVunerabilities(report.IstioVersion),
-	})
+	}
+	err = t.Execute(bw, params)
+	log.Infof("jianfeih debug the cve list %v %v", report.IstioVersion, params.Vunerabilities)
+
 	if err != nil {
 		log.Fatalf("failed to render template: %v", err)
 	}
@@ -67,9 +73,9 @@ func FindVunerabilities(version string) []*CVEEntry {
 		log.Errorf("Failed to parse version %v", version)
 		return out
 	}
-	cves, err := LoadDatabase("../../database.yaml")
-	if err != nil {
-		log.Errorf("Failed to load database: %v", err)
+	cves := []CVEEntry{}
+	if err := yaml.Unmarshal([]byte(cveDatabaseYAML), &cves); err != nil {
+		log.Errorf("failed to parse cve database: %v", err)
 		return out
 	}
 	for ind, entry := range cves {
@@ -84,13 +90,9 @@ func FindVunerabilities(version string) []*CVEEntry {
 }
 
 // LoadDatabase loads the information from a YAML format config.
-func LoadDatabase(path string) ([]CVEEntry, error) {
+func LoadDatabase(cveYAML string) ([]CVEEntry, error) {
 	out := []CVEEntry{}
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read cve file: %v", err)
-	}
-	if err := yaml.Unmarshal(b, &out); err != nil {
+	if err := yaml.Unmarshal([]byte(cveYAML), &out); err != nil {
 		return nil, fmt.Errorf("failed to parse cve file: %v", err)
 	}
 	return out, nil

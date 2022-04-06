@@ -78,7 +78,7 @@ func TestRefreshDatabase(t *testing.T) {
 	}
 	// TODO: this should really be merge with existing data instead of override.
 	// New entries are added, existing entries are ignored.
-	if err := SaveDatabase(e, "./../../database.yaml"); err != nil {
+	if err := SaveDatabase(e, "./database.yaml"); err != nil {
 		t.Error(err)
 	}
 
