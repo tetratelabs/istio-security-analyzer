@@ -13,6 +13,14 @@ func TestFindVunerabilities(t *testing.T) {
 		istioRelease string
 		cves         []string
 	}{
+		// Verified.
+		{
+			istioRelease: "1.13.1",
+			cves: []string{
+				"ISTIO-SECURITY-2022-004",
+			},
+		},
+		// Verified.
 		{
 			istioRelease: "1.12.1",
 			cves: []string{
@@ -20,6 +28,26 @@ func TestFindVunerabilities(t *testing.T) {
 				"ISTIO-SECURITY-2022-003",
 				"ISTIO-SECURITY-2022-002",
 				"ISTIO-SECURITY-2022-001",
+			},
+		},
+		// Verified.
+		{
+			istioRelease: "1.9.9",
+			cves: []string{
+				"ISTIO-SECURITY-2022-004",
+				"ISTIO-SECURITY-2022-003",
+			},
+		},
+		// Verified.
+		{
+			istioRelease: "1.9.1",
+			cves: []string{
+				"ISTIO-SECURITY-2022-004",
+				"ISTIO-SECURITY-2022-003",
+				"ISTIO-SECURITY-2021-005",
+				"ISTIO-SECURITY-2021-006",
+				"ISTIO-SECURITY-2021-007",
+				"ISTIO-SECURITY-2021-008",
 			},
 		},
 	}
