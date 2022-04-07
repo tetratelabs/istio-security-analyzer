@@ -64,6 +64,11 @@ func init() {
 	flags := scannerCmd.Flags()
 	flags.StringVarP(&kubeConfigPath, "config", "c", "~/.kube/config", "The path to the kubeconfig of a cluster to be analyzed.")
 	flags.BoolVar(&runOnce, "once", true, "Whether running the scanning only one shot. If false, will continue in a loop")
+	// By default if `--log_output_level` is not specified by users, we supress the output to make report clean.
+	// Setting "default" is needed, otherwise setting "kube" alone does not work, due to issue possible
+	// log package itself. That make log output level field as ",kube:none", no effect.
+	loggingOptions.SetOutputLevel("default", log.InfoLevel)
+	loggingOptions.SetOutputLevel("kube", log.NoneLevel)
 	loggingOptions.AttachCobraFlags(scannerCmd)
 }
 

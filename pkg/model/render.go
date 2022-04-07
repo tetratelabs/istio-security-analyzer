@@ -57,8 +57,6 @@ func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 		Vunerabilities:  FindVunerabilities(report.IstioVersion),
 	}
 	err = t.Execute(bw, params)
-	log.Infof("jianfeih debug the cve list %v %v", report.IstioVersion, params.Vunerabilities)
-
 	if err != nil {
 		log.Fatalf("failed to render template: %v", err)
 	}
