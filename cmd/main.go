@@ -1,20 +1,10 @@
-// Program scanner supports scanning Istio configuration and analzye CVE.
+// The program supports scanning Istio configuration and analzye CVE.
 package main
 
 // Plan of the record.
 // Basic parser for Istio authoriation policy.
 // - [ ] Check reports the total number of the policy scanned. (58 security policies, 32 networking policies.)
 // - [ ] Consider to add more accurate error message tied to the field.
-
-// CUJ: user experience.
-// Analyze the local config only
-// scanner # prints the ".", using default kubeconfig find the cve version.
-
-// scanner --dir . # print the local dir.
-// CVE default database, use official URL: gist.github.com for now.
-// CVE db, using file system.
-// scanner --cve-database ./path/to/db
-
 // Analyze the Istio cluster.
 // scanner --kube <kubeconfig-path>
 
