@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	yaml "gopkg.in/yaml.v2"
@@ -110,4 +111,29 @@ func FetchIstioPage() ([]CVEEntry, error) {
 		})
 	})
 	return entries, nil
+}
+
+// FindVunerabilities returns the relevant security disclosures that might the given Istio release.
+func FindVunerabilities(version string) []*CVEEntry {
+	out := []*CVEEntry{}
+	err, ver := ParseRelease(version)
+	if err != nil {
+		log.Errorf("Failed to parse version %v", version)
+		return out
+	}
+	cves := []CVEEntry{}
+	if err := yaml.Unmarshal([]byte(cveDatabaseYAML), &cves); err != nil {
+		log.Errorf("failed to parse cve database: %v", err)
+		return out
+	}
+	for ind, entry := range cves {
+		cves[ind].URL = fmt.Sprintf("https://istio.io/latest/news/security/%v", strings.ToLower(entry.DisclosureID))
+		for _, s := range entry.AffectedReleases {
+			if s.Include(ver) {
+				out = append(out, &cves[ind])
+				break
+			}
+		}
+	}
+	return out
 }

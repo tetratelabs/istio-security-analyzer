@@ -17,6 +17,8 @@ const (
 type CVEEntry struct {
 	// DisclosureID uniquely identifies a single disclosure. For example, "ISTIO-SECURITY-2022-004".
 	DisclosureID string `yaml:"disclosureID,omitempty"`
+	// URL is the link to the corresponding Istio CVE page.
+	URL string
 	// Description is a human-readable summary of the CVE.
 	Description string `yaml:"description,omitempty"`
 	// [0, 10].
