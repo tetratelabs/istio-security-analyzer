@@ -137,7 +137,7 @@ func (c *Client) checkDistrolessImage() error {
 		for _, c := range po.Spec.Containers {
 			if !strings.Contains(c.Image, "distroless") {
 				return fmt.Errorf(
-					"pod %v can uses a distroless image for better security, current %v", po.Name, c.Image)
+					"pod %v can use a distroless image for better security, current %v", po.Name, c.Image)
 			}
 		}
 	}

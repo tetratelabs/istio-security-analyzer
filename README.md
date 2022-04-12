@@ -48,7 +48,7 @@ Control Plane Version
 - 1.12.1
 
 Distroless Warning
-- pod istio-egressgateway-687f4db598-rn5hs can uses a distroless image for better security, current docker.io/istio/proxyv2:1.12.1
+- pod istio-egressgateway-687f4db598-rn5hs can use a distroless image for better security, current docker.io/istio/proxyv2:1.12.1
 
 CVE Report
 - ISTIO-SECURITY-2022-004
