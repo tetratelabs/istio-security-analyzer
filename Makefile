@@ -59,7 +59,7 @@ help: ## Describe how to use each target
 
 .PHONY: test
 test: ## Run all unit tests
-	@go test ./...
+	@$(go) test ./...
 
 .PHONY: build
 build: $(current_binary) $(current_server_binary) ## Build the binary
@@ -103,8 +103,8 @@ format: go.mod $(all_go_sources) $(goimports) ## Format all Go sources
 	@printf "$(ansi_format_bright)" $@ "ok"
 
 check: ## Verify contents of last commit
-	$(MAKE) format
-	$(MAKE) lint
+	@$(MAKE) format
+	@$(MAKE) lint
 	@if [ ! -z "`git status -s`" ]; then \
 		echo "The following differences will fail CI until committed:"; \
 		git diff --exit-code; \
