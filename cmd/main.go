@@ -1,3 +1,17 @@
+// Copyright 2022 Tetrate
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // The program supports scanning Istio configuration and analzye CVE.
 package main
 
@@ -9,19 +23,31 @@ package main
 // scanner --kube <kubeconfig-path>
 
 import (
-	"github.com/tetratelabs/istio-security-scanner/pkg/k8s"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"istio.io/pkg/log"
+
+	"github.com/tetratelabs/istio-security-scanner/pkg/k8s"
 )
 
 var (
 	kubeConfigPath = "."
 	runOnce        = false
+	version        = "dev"
+	commit         = "dev"
+	date           = "dev"
 	loggingOptions log.Options
+
+	flagVersion = false
 
 	scannerCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
+			if flagVersion {
+				fmt.Printf("scanner %s (%s, %s)\n", version, commit, date)
+				return
+			}
+
 			RunAll(&analyerOptions{
 				KubeConfig: kubeConfigPath,
 			})
@@ -52,6 +78,7 @@ func RunAll(options *analyerOptions) {
 
 func init() {
 	flags := scannerCmd.Flags()
+	flags.BoolVar(&flagVersion, "version", false, "Show the version of scanner")
 	flags.StringVarP(&kubeConfigPath, "config", "c", "~/.kube/config", "The path to the kubeconfig of a cluster to be analyzed.")
 	flags.BoolVar(&runOnce, "once", true, "Whether running the scanning only one shot. If false, will continue in a loop")
 	// By default if `--log_output_level` is not specified by users, we supress the output to make report clean.

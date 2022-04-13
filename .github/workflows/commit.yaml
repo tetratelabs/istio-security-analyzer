@@ -1,0 +1,118 @@
+# Copyright 2022 Tetrate
+# Licensed under the Apache License, Version 2.0 (the "License")
+
+name: "commit"
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.png"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.png"
+
+  # Allows triggering the workflow manually in github actions page.
+  workflow_dispatch:
+
+defaults:
+  run:  # use bash for all operating systems unless overridden
+    shell: bash
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90  # instead of 360 by default.
+    strategy:
+      fail-fast: false # don't fail fast as sometimes failures are operating system specific
+    steps:
+      - name: Cancel when duplicated
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v2 # shallow checkout.
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.x"
+
+      - name: Download cache for Tools
+        uses: actions/cache@v2
+        with:
+          path: ./.cache/tools
+          # Downloading cached tools needs to use an exact key, since we
+          # currently don't do versioning for each cached binary.
+          key: ${{ runner.os }}-check-tools-${{ hashFiles('Tools.mk') }}
+
+      - name: Download cache for Go
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          # When we update Tools.mk, there is a possibility we download a new Go dependencies.
+          key: ${{ runner.os }}-check-go-${{ hashFiles('go.mod', 'go.sum', 'Tools.mk') }}
+          restore-keys: ${{ runner.os }}-check-go
+
+      - name: Get Linter cache key
+        run: |
+          echo "::set-output name=name::$(/bin/date -u "+%Y%m%d")"
+        id: get-linter-cache-key
+      # We cache golangci-lint run per day.
+      - name: Download cache for Linter
+        uses: actions/cache@v2
+        with:
+          path: ./.cache/golangci-lint
+          key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go.mod') }}-${{ steps.get-linter-cache-key.outputs.name }}
+          restore-keys: ${{ runner.os }}-golangci-lint-
+
+      - name: Check
+        run: make check # `make check` does all the necessary checks.
+
+  test:
+    needs: check
+    name: test
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90  # instead of 360 by default.
+    strategy:
+      fail-fast: false # don't fail fast as sometimes failures are operating system specific
+
+    steps:
+      - name: Cancel when duplicated
+        uses: styfle/cancel-workflow-action@0.4.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v2 # shallow checkout.
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17.x"
+
+      - name: Download cache for Tools
+        uses: actions/cache@v2
+        with:
+          path: ./.cache/tools
+          # Downloading cached tools needs to use an exact key, since we
+          # currently don't do versioning for each cached binary.
+          key: ${{ runner.os }}-tools-${{ hashFiles('Tools.mk') }}
+
+      - name: Download cache for Go
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          # When we update Tools.mk, there is a possibility we download a new Go dependencies.
+          key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Tools.mk') }}
+          restore-keys: ${{ runner.os }}-go
+
+      - name: Test and build
+        run: make test build
