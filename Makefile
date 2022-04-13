@@ -105,6 +105,7 @@ format: go.mod $(all_go_sources) $(goimports) ## Format all Go sources
 check: ## Verify contents of last commit
 	@$(MAKE) format
 	@$(MAKE) lint
+	@$(MAKE) license
 	@if [ ! -z "`git status -s`" ]; then \
 		echo "The following differences will fail CI until committed:"; \
 		git diff --exit-code; \
