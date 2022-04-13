@@ -68,20 +68,6 @@ license_files := cmd pkg
 license: $(addlicense) ## Add license to files
 	@$(addlicense) -c "Tetrate" $(license_files) 1>/dev/null 2>&1
 
-clean: ## Ensure a clean build
-	@printf "$(ansi_format_dark)" $@ "deleting temporary files"
-	@rm -rf coverage.txt
-	@rm -rf build
-	@rm -rf dist
-	@$(go) clean -testcache
-	@printf "$(ansi_format_bright)" $@ "ok"
-
-build/$(name)_%/$(name): $(main_go_sources)
-	$(call go-build,$@,$<)
-
-build/$(name)_%/$(name).exe: $(main_go_sources)
-	$(call go-build,$@,$<)
-
 # Override lint cache directory so we can cache it on CI. Reference: https://golangci-lint.run/usage/configuration/#cache.
 # TODO(dio): we need to have .golangci.yml so we can control how linter lints our code.
 export GOLANGCI_LINT_CACHE=$(CACHE_DIR)/golangci-lint
@@ -110,6 +96,20 @@ check: ## Verify contents of last commit
 		echo "The following differences will fail CI until committed:"; \
 		git diff --exit-code; \
 	fi
+
+clean: ## Ensure a clean build
+	@printf "$(ansi_format_dark)" $@ "deleting temporary files"
+	@rm -rf coverage.txt
+	@rm -rf build
+	@rm -rf dist
+	@$(go) clean -testcache
+	@printf "$(ansi_format_bright)" $@ "ok"
+
+build/$(name)_%/$(name): $(main_go_sources)
+	$(call go-build,$@,$<)
+
+build/$(name)_%/$(name).exe: $(main_go_sources)
+	$(call go-build,$@,$<)
 
 go_link := -X main.version=$(VERSION) -X main.commit=$(shell git rev-parse --short HEAD) -X main.date=$(shell date '+%Y-%m-%d')
 go-arch  = $(if $(findstring amd64,$1),amd64,arm64)
