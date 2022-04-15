@@ -32,6 +32,13 @@ export PATH := $(go_tools_dir):$(PATH)
 current_binary_path := build/$(name)_$(goos)_$(goarch)
 current_binary      := $(current_binary_path)/$(name)$(goexe)
 
+linux_platforms       := linux_amd64 linux_arm64
+non_windows_platforms := darwin_amd64 darwin_arm64 $(linux_platforms)
+windows_platforms     := windows_amd64
+
+archives  := $(non_windows_platforms:%=dist/$(name)_$(VERSION)_%.tar.gz) $(windows_platforms:%=dist/$(name)_$(VERSION)_%.zip)
+checksums := dist/$(name)_$(VERSION)_checksums.txt
+
 # Go-based tools.
 addlicense    := $(go_tools_dir)/addlicense
 goimports     := $(go_tools_dir)/goimports
@@ -62,7 +69,10 @@ test: ## Run all unit tests
 	@$(go) test ./...
 
 .PHONY: build
-build: $(current_binary) $(current_server_binary) ## Build the binary
+build: $(current_binary) ## Build the binary
+
+# This generates the assets that attach to a release.
+dist: $(archives) $(checksums) ## Generate release assets
 
 license_files := cmd pkg
 license: $(addlicense) ## Add license to files
@@ -110,6 +120,27 @@ build/$(name)_%/$(name): $(main_go_sources)
 
 build/$(name)_%/$(name).exe: $(main_go_sources)
 	$(call go-build,$@,$<)
+
+dist/$(name)_$(VERSION)_%.tar.gz: build/$(name)_%/$(name)
+	@printf "$(ansi_format_dark)" tar.gz "tarring $@"
+	@mkdir -p $(@D)
+	@tar -C $(<D) -cpzf $@ $(<F)
+	@printf "$(ansi_format_bright)" tar.gz "ok"
+
+# TODO(dio): Archive the signed binary instead of the unsigned one. And provide pivot when
+# building on Windows.
+dist/$(name)_$(VERSION)_%.zip: build/$(name)_%/$(name).exe
+	@printf "$(ansi_format_dark)" zip "zipping $@"
+	@mkdir -p $(@D)
+	@zip -qj $@ $<
+	@printf "$(ansi_format_bright)" zip "ok"
+
+# Darwin doesn't have sha256sum. See https://github.com/actions/virtual-environments/issues/90
+sha256sum := $(if $(findstring darwin,$(goos)),shasum -a 256,sha256sum)
+$(checksums): $(archives)
+	@printf "$(ansi_format_dark)" sha256sum "generating $@"
+	@$(sha256sum) $^ > $@
+	@printf "$(ansi_format_bright)" sha256sum "ok"
 
 go_link := -X main.version=$(VERSION) -X main.commit=$(shell git rev-parse --short HEAD) -X main.date=$(shell date '+%Y-%m-%d')
 go-arch  = $(if $(findstring amd64,$1),amd64,arm64)
