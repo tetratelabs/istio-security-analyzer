@@ -127,8 +127,7 @@ dist/$(name)_$(VERSION)_%.tar.gz: build/$(name)_%/$(name)
 	@tar -C $(<D) -cpzf $@ $(<F)
 	@printf "$(ansi_format_bright)" tar.gz "ok"
 
-# TODO(dio): Archive the signed binary instead of the unsigned one. And provide pivot when
-# building on Windows.
+# TODO(dio): Archive the signed binary instead of the unsigned one.
 dist/$(name)_$(VERSION)_%.zip: build/$(name)_%/$(name).exe
 	@printf "$(ansi_format_dark)" zip "zipping $@"
 	@mkdir -p $(@D)

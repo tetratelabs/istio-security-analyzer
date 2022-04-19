@@ -6,7 +6,7 @@ name: "release"
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+**"  # For example: v0.5.0 v0.5.1-rc2
+      - "[0-9]+.[0-9]+.[0-9]+**"  # For example: 0.5.0 0.5.1-rc2
 
 defaults:
   run: # use bash for all operating systems unless overridden.
@@ -34,7 +34,6 @@ jobs:
           go-version: "1.17.x"
 
       - name: Download cache for Tools
-        # if: matrix.mode == 'website' # this is required only for website.
         uses: actions/cache@v2
         with:
           path: ./.cache/tools
@@ -50,8 +49,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.mod', 'go.sum', 'Tools.mk') }}
           restore-keys: ${{ runner.os }}-go
 
-      - name: Create artifacts # We strip the "v"-prefix from the current tag.
-        run: VERSION=${GITHUB_REF#refs/tags/v} make dist
+      - name: Create artifacts
+        run: VERSION=${GITHUB_REF#refs/tags} make dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
