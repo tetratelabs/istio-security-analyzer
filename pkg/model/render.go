@@ -19,12 +19,13 @@ import (
 	_ "embed"
 	"text/template"
 
+	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
 	"istio.io/pkg/log"
 )
 
 const (
 	reportTemplate = `==========================================
-    Istio Security Scanning Report
+    Istio Security Report
 
 Control Plane Version
 - {{ .IstioVersion }}
@@ -37,7 +38,9 @@ CVE Report
 {{range .Vunerabilities}}❌ {{ .DisclosureID  }}  {{ .ImpactScore }}  {{ .URL }}
 {{end}}
 
-Config Warnings
+Config Report
+We scanned {{.SecurityConfigCount}} security configurations, and {{.NetworkingConfigCount}} networking configurations.
+
 {{range .ConfigWarnings}}❌ {{ . }}
 {{end}}
 ==========================================
@@ -48,14 +51,15 @@ Config Warnings
 var cveDatabaseYAML string
 
 // RenderReport the security information into a HTML page.
-func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
+func RenderReport(
+	report IstioControlPlaneReport, configReport parser.ConfigScanningReport) string {
 	t, err := template.New("webpage").Parse(string(reportTemplate))
 	if err != nil {
 		log.Fatalf("failed create render template: %v", err)
 	}
 	bw := bytes.NewBufferString("")
 	warningMessage := []string{}
-	for _, e := range configIssues {
+	for _, e := range configReport.Errors {
 		warningMessage = append(warningMessage, e.Error())
 	}
 	distroMessage := ""
@@ -68,6 +72,8 @@ func RenderReport(report IstioControlPlaneReport, configIssues []error) string {
 		DistrolessIssue: distroMessage,
 		Vunerabilities:  FindVunerabilities(report.IstioVersion),
 	}
+	params.NetworkingConfigCount = configReport.CountByGroup[parser.NetworkingAPIGroup]
+	params.SecurityConfigCount = configReport.CountByGroup[parser.SecurityAPIGroup]
 	err = t.Execute(bw, params)
 	if err != nil {
 		log.Fatalf("failed to render template: %v", err)

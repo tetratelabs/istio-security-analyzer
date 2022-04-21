@@ -115,8 +115,11 @@ func (rs ReleaseRange) Include(r IstioRelease) bool {
 
 // securityReportParams contains a comprehensive summary of the scanning results.
 type securityReportParams struct {
-	IstioVersion    string
-	DistrolessIssue string
-	Vunerabilities  []*CVEEntry
-	ConfigWarnings  []string
+	IstioVersion              string
+	DistrolessIssue           string
+	Vunerabilities            []*CVEEntry
+	ConfigWarnings            []string
+	ConfigScannedCountByGroup map[string]int
+	NetworkingConfigCount     int
+	SecurityConfigCount       int
 }

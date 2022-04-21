@@ -49,8 +49,8 @@ const (
 	authzPositiveDeny           = "authorization policy: found positive matches in deny policy"
 	destinationRuleTlsNotVerify = "destination rule: either caCertificates or subjectAltNames is not set."
 
-	securityAPIGroup   = "security.istio.io"
-	networkingAPIGroup = "networking.istio.io"
+	SecurityAPIGroup   = "security.istio.io"
+	NetworkingAPIGroup = "networking.istio.io"
 )
 
 // Report contains the scanning report.
@@ -58,7 +58,15 @@ type Report struct {
 	SecurityPolicyCount   int
 	NetworkingPolicyCount int
 	PolicyIssues          []error
+	ConfigReport          *ConfigScanningReport
 	Vunerabilities        []string
+}
+
+type ConfigScanningReport struct {
+	// Errors contain the issues we find in Istio config.
+	Errors []error
+	// CountByGroup is a map from the name of the config group to the number of the configs scanned.
+	CountByGroup map[string]int
 }
 
 // A list of Istio config all shared the same group version kind.
@@ -243,19 +251,50 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 	return input == target
 }
 
-func isSecurityGroup(gvk istioConfig.GroupVersionKind) bool {
-	return gvk.Group == "security.istio.io"
-}
-
-func isNetworkingGroup(gvk istioConfig.GroupVersionKind) bool {
-	return gvk.Group == "networking.istio.io"
+func CheckAllReport(configs []*istioConfig.Config) ConfigScanningReport {
+	errs := []error{}
+	countByGroup := map[string]int{
+		SecurityAPIGroup:   0,
+		NetworkingAPIGroup: 0,
+	}
+	configSet := map[string]*istioConfig.Config{}
+	for _, c := range scannerConfigs {
+		// prepare the input config collections.
+		collections := []configCollection{}
+		for _, gvk := range c.input {
+			// TODO: make the `configs` param also sorted out instead of redudant calculation here.
+			col := configCollection{}
+			for _, istioC := range configs {
+				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
+					configSet[istioC.Key()] = istioC
+					col = append(col, istioC)
+				}
+			}
+			collections = append(collections, col)
+		}
+		if err := c.scanner(collections); len(err) != 0 {
+			errs = append(errs, err...)
+		}
+	}
+	for _, c := range configSet {
+		if c.GroupVersionKind.Group == SecurityAPIGroup {
+			countByGroup[SecurityAPIGroup] += 1
+		}
+		if c.GroupVersionKind.Group == NetworkingAPIGroup {
+			countByGroup[NetworkingAPIGroup] += 1
+		}
+	}
+	return ConfigScanningReport{
+		Errors:       errs,
+		CountByGroup: countByGroup,
+	}
 }
 
 func CheckAll(configs []*istioConfig.Config) []error {
 	out := []error{}
 	countByGroup := map[string]int{
-		securityAPIGroup:   0,
-		networkingAPIGroup: 0,
+		SecurityAPIGroup:   0,
+		NetworkingAPIGroup: 0,
 	}
 	configSet := map[string]*istioConfig.Config{}
 	for _, c := range scannerConfigs {
@@ -277,15 +316,13 @@ func CheckAll(configs []*istioConfig.Config) []error {
 		}
 	}
 	for _, c := range configSet {
-		if c.GroupVersionKind.Group == securityAPIGroup {
-			countByGroup[securityAPIGroup] += 1
+		if c.GroupVersionKind.Group == SecurityAPIGroup {
+			countByGroup[SecurityAPIGroup] += 1
 		}
-		if c.GroupVersionKind.Group == networkingAPIGroup {
-			countByGroup[networkingAPIGroup] += 1
+		if c.GroupVersionKind.Group == NetworkingAPIGroup {
+			countByGroup[NetworkingAPIGroup] += 1
 		}
 	}
-	// TODO(incfly): here, report the scanned config count back to summary.
-	fmt.Println("jianfeih count by group ", countByGroup)
 	return out
 }
 
@@ -312,8 +349,8 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		errs := CheckAll(configs)
-		for _, e := range errs {
+		report := CheckAllReport(configs)
+		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)
 			}
