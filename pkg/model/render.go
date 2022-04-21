@@ -19,8 +19,9 @@ import (
 	_ "embed"
 	"text/template"
 
-	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
 	"istio.io/pkg/log"
+
+	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
 )
 
 const (
