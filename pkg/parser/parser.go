@@ -48,6 +48,9 @@ const (
 	authzNegativeMatchInAllow   = "authorization policy: found negative matches in allow policy"
 	authzPositiveDeny           = "authorization policy: found positive matches in deny policy"
 	destinationRuleTlsNotVerify = "destination rule: either caCertificates or subjectAltNames is not set."
+
+	securityAPIGroup   = "security.istio.io"
+	networkingAPIGroup = "networking.istio.io"
 )
 
 // Report contains the scanning report.
@@ -57,6 +60,41 @@ type Report struct {
 	PolicyIssues          []error
 	Vunerabilities        []string
 }
+
+// A list of Istio config all shared the same group version kind.
+type configCollection []*istioConfig.Config
+
+type scannerFunc func([]configCollection) []error
+
+type scannerConfig struct {
+	// input contains a list of the config type that the function needs.
+	input []istioConfig.GroupVersionKind
+	// scanner is the actual function.
+	scanner scannerFunc
+}
+
+var (
+	scannerConfigs = []scannerConfig{
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.AuthorizationPolicy,
+			},
+			scanner: scanAuthorizationPolicies,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.DestinationRule,
+			},
+			scanner: scanDestinationRules,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.Gateway,
+			},
+			scanner: scanGateways,
+		},
+	}
+)
 
 func reportError(c *istioConfig.Config, message string) error {
 	return fmt.Errorf("%v %v/%v: %v", c.GroupVersionKind, c.Namespace, c.Name, message)
@@ -205,26 +243,49 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 	return input == target
 }
 
+func isSecurityGroup(gvk istioConfig.GroupVersionKind) bool {
+	return gvk.Group == "security.istio.io"
+}
+
+func isNetworkingGroup(gvk istioConfig.GroupVersionKind) bool {
+	return gvk.Group == "networking.istio.io"
+}
+
 func CheckAll(configs []*istioConfig.Config) []error {
 	out := []error{}
-	for _, c := range configs {
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.AuthorizationPolicy) {
-			if err := checkAuthorizationPolicy(c); err != nil {
-				out = append(out, err)
-			}
-		}
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.DestinationRule) {
-			if err := checkDestinationRule(c); err != nil {
-				out = append(out, err)
-			}
-		}
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.Gateway) {
-			if err := checkGateway(c); err != nil {
-				out = append(out, err)
-			}
-		}
-		// check gateway & virtualservice.
+	countByGroup := map[string]int{
+		securityAPIGroup:   0,
+		networkingAPIGroup: 0,
 	}
+	configSet := map[string]*istioConfig.Config{}
+	for _, c := range scannerConfigs {
+		// prepare the input config collections.
+		collections := []configCollection{}
+		for _, gvk := range c.input {
+			// TODO: make the `configs` param also sorted out instead of redudant calculation here.
+			col := configCollection{}
+			for _, istioC := range configs {
+				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
+					configSet[istioC.Key()] = istioC
+					col = append(col, istioC)
+				}
+			}
+			collections = append(collections, col)
+		}
+		if err := c.scanner(collections); len(err) != 0 {
+			out = append(out, err...)
+		}
+	}
+	for _, c := range configSet {
+		if c.GroupVersionKind.Group == securityAPIGroup {
+			countByGroup[securityAPIGroup] += 1
+		}
+		if c.GroupVersionKind.Group == networkingAPIGroup {
+			countByGroup[networkingAPIGroup] += 1
+		}
+	}
+	// TODO(incfly): here, report the scanned config count back to summary.
+	fmt.Println("jianfeih count by group ", countByGroup)
 	return out
 }
 
@@ -297,6 +358,46 @@ func hasPositiveMatchInTo(to *istiosec.Rule_To) bool {
 	}
 	return len(to.Operation.Hosts) != 0 || len(to.Operation.Methods) != 0 ||
 		len(to.Operation.Paths) != 0 || len(to.Operation.Ports) != 0
+}
+
+func scanAuthorizationPolicies(collections []configCollection) []error {
+	// Only need authorization policy.
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkAuthorizationPolicy(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
+}
+
+func scanDestinationRules(collections []configCollection) []error {
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkDestinationRule(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
+}
+
+func scanGateways(collections []configCollection) []error {
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkGateway(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
 }
 
 func checkAuthorizationPolicy(c *istioConfig.Config) error {
