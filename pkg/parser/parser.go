@@ -48,6 +48,9 @@ const (
 	authzNegativeMatchInAllow   = "authorization policy: found negative matches in allow policy"
 	authzPositiveDeny           = "authorization policy: found positive matches in deny policy"
 	destinationRuleTlsNotVerify = "destination rule: either caCertificates or subjectAltNames is not set."
+
+	SecurityAPIGroup   = "security.istio.io"
+	NetworkingAPIGroup = "networking.istio.io"
 )
 
 // Report contains the scanning report.
@@ -55,8 +58,51 @@ type Report struct {
 	SecurityPolicyCount   int
 	NetworkingPolicyCount int
 	PolicyIssues          []error
+	ConfigReport          *ConfigScanningReport
 	Vunerabilities        []string
 }
+
+type ConfigScanningReport struct {
+	// Errors contain the issues we find in Istio config.
+	Errors []error
+	// CountByGroup is a map from the name of the config group to the number of the configs scanned.
+	CountByGroup map[string]int
+}
+
+// A list of Istio config all shared the same group version kind.
+type configCollection []*istioConfig.Config
+
+type scannerFunc func([]configCollection) []error
+
+type scannerConfig struct {
+	// input contains a list of the config type that the function needs.
+	input []istioConfig.GroupVersionKind
+	// scanner is the actual function.
+	scanner scannerFunc
+}
+
+var (
+	scannerConfigs = []scannerConfig{
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.AuthorizationPolicy,
+			},
+			scanner: scanAuthorizationPolicies,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.DestinationRule,
+			},
+			scanner: scanDestinationRules,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.Gateway,
+			},
+			scanner: scanGateways,
+		},
+	}
+)
 
 func reportError(c *istioConfig.Config, message string) error {
 	return fmt.Errorf("%v %v/%v: %v", c.GroupVersionKind, c.Namespace, c.Name, message)
@@ -70,27 +116,6 @@ func ParseFile(filename string) (string, error) {
 // Parse reads all files specified in the input directory.
 func ParseDir(dir string) (string, error) {
 	return "", nil
-}
-
-func ReadConfigObjects(files ...string) ([]*istioConfig.Config, error) {
-	configObjects := make([]*istioConfig.Config, 0)
-	for _, inputTmpl := range files {
-		yamlBytes, err := ioutil.ReadFile("testdata/" + inputTmpl)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read file %s: %w", inputTmpl, err)
-		}
-		yamlStr := string(yamlBytes)
-		kubeYaml := yamlStr
-		cfgs, err := decodeConfigYAML(kubeYaml)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode kubernetes configs in file %s: %w", inputTmpl, err)
-		}
-		for _, cfg := range cfgs {
-			cobjCopy := cfg.DeepCopy()
-			configObjects = append(configObjects, &cobjCopy)
-		}
-	}
-	return configObjects, nil
 }
 
 func getCombinedScheme() (*runtime.Scheme, error) {
@@ -205,25 +230,78 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 	return input == target
 }
 
+// ScanIstioConfig scans all the input configurations and applies all the registered checks.
+func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
+	errs := []error{}
+	countByGroup := map[string]int{
+		SecurityAPIGroup:   0,
+		NetworkingAPIGroup: 0,
+	}
+	configSet := map[string]*istioConfig.Config{}
+	for _, c := range scannerConfigs {
+		// prepare the input config collections.
+		collections := []configCollection{}
+		for _, gvk := range c.input {
+			// TODO: make the `configs` param also sorted out instead of redudant calculation here.
+			col := configCollection{}
+			for _, istioC := range configs {
+				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
+					configSet[istioC.Key()] = istioC
+					col = append(col, istioC)
+				}
+			}
+			collections = append(collections, col)
+		}
+		if err := c.scanner(collections); len(err) != 0 {
+			errs = append(errs, err...)
+		}
+	}
+	for _, c := range configSet {
+		if c.GroupVersionKind.Group == SecurityAPIGroup {
+			countByGroup[SecurityAPIGroup] += 1
+		}
+		if c.GroupVersionKind.Group == NetworkingAPIGroup {
+			countByGroup[NetworkingAPIGroup] += 1
+		}
+	}
+	return ConfigScanningReport{
+		Errors:       errs,
+		CountByGroup: countByGroup,
+	}
+}
+
 func CheckAll(configs []*istioConfig.Config) []error {
 	out := []error{}
-	for _, c := range configs {
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.AuthorizationPolicy) {
-			if err := checkAuthorizationPolicy(c); err != nil {
-				out = append(out, err)
+	countByGroup := map[string]int{
+		SecurityAPIGroup:   0,
+		NetworkingAPIGroup: 0,
+	}
+	configSet := map[string]*istioConfig.Config{}
+	for _, c := range scannerConfigs {
+		// prepare the input config collections.
+		collections := []configCollection{}
+		for _, gvk := range c.input {
+			// TODO: make the `configs` param also sorted out instead of redudant calculation here.
+			col := configCollection{}
+			for _, istioC := range configs {
+				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
+					configSet[istioC.Key()] = istioC
+					col = append(col, istioC)
+				}
 			}
+			collections = append(collections, col)
 		}
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.DestinationRule) {
-			if err := checkDestinationRule(c); err != nil {
-				out = append(out, err)
-			}
+		if err := c.scanner(collections); len(err) != 0 {
+			out = append(out, err...)
 		}
-		if gvkEqualsIgnoringVersion(c.GroupVersionKind, istiogvk.Gateway) {
-			if err := checkGateway(c); err != nil {
-				out = append(out, err)
-			}
+	}
+	for _, c := range configSet {
+		if c.GroupVersionKind.Group == SecurityAPIGroup {
+			countByGroup[SecurityAPIGroup] += 1
 		}
-		// check gateway & virtualservice.
+		if c.GroupVersionKind.Group == NetworkingAPIGroup {
+			countByGroup[NetworkingAPIGroup] += 1
+		}
 	}
 	return out
 }
@@ -251,8 +329,8 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		errs := CheckAll(configs)
-		for _, e := range errs {
+		report := ScanIstioConfig(configs)
+		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)
 			}
@@ -297,6 +375,46 @@ func hasPositiveMatchInTo(to *istiosec.Rule_To) bool {
 	}
 	return len(to.Operation.Hosts) != 0 || len(to.Operation.Methods) != 0 ||
 		len(to.Operation.Paths) != 0 || len(to.Operation.Ports) != 0
+}
+
+func scanAuthorizationPolicies(collections []configCollection) []error {
+	// Only need authorization policy.
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkAuthorizationPolicy(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
+}
+
+func scanDestinationRules(collections []configCollection) []error {
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkDestinationRule(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
+}
+
+func scanGateways(collections []configCollection) []error {
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkGateway(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
 }
 
 func checkAuthorizationPolicy(c *istioConfig.Config) error {

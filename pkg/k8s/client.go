@@ -45,10 +45,10 @@ type Client struct {
 	nsInformer  cache.SharedIndexInformer
 	nsHandler   cache.ResourceEventHandler
 	runOnce     bool
-	// mutex protects the access to `istioVersion` and `configIssues`.
+	// mutex protects the access to `istioVersion` and `configReport`.
 	mu           sync.Mutex
 	istioReport  smodel.IstioControlPlaneReport
-	configIssues []error
+	configReport parser.ConfigScanningReport
 }
 
 type namespaceHandler struct{}
@@ -125,7 +125,7 @@ func (c *Client) Run(stopCh chan struct{}) {
 		c.scanAll()
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		report := smodel.RenderReport(c.istioReport, c.configIssues)
+		report := smodel.RenderReport(c.istioReport, c.configReport)
 		log.Infof("Report\n%v", report)
 		stopCh <- struct{}{}
 	} else {
@@ -158,7 +158,7 @@ func (c *Client) checkDistrolessImage() error {
 func (c *Client) reportSecuritySummary(w http.ResponseWriter, req *http.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	report := smodel.RenderReport(c.istioReport, c.configIssues)
+	report := smodel.RenderReport(c.istioReport, c.configReport)
 	_, _ = w.Write([]byte(report))
 }
 
@@ -204,9 +204,10 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 	}
-	errs := parser.CheckAll(configs)
+	configReport := parser.ScanIstioConfig(configs)
+	// TODO(incfly): this is not a clean, we should instead make the parser contains logic of detecting gateway rbac check.
 	if err := c.checkRBACForGateway(); err != nil {
-		errs = append(errs, err)
+		configReport.Errors = append(configReport.Errors, err)
 	}
 
 	istioVersion := "undefined"
@@ -223,8 +224,8 @@ func (c *Client) scanAll() {
 		IstioVersion:    istioVersion,
 		DistrolessIssue: c.checkDistrolessImage(),
 	}
-	c.configIssues = errs
-	log.Debugf("Updated Istio Control Plane report %v, configIssues %v", c.istioReport, c.configIssues)
+	c.configReport = configReport
+	log.Debugf("Updated Istio Control Plane report %v, config report %v", c.istioReport, c.configReport)
 	c.mu.Unlock()
 }
 
