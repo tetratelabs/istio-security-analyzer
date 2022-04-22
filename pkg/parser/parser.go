@@ -118,27 +118,6 @@ func ParseDir(dir string) (string, error) {
 	return "", nil
 }
 
-func ReadConfigObjects(files ...string) ([]*istioConfig.Config, error) {
-	configObjects := make([]*istioConfig.Config, 0)
-	for _, inputTmpl := range files {
-		yamlBytes, err := ioutil.ReadFile("testdata/" + inputTmpl)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read file %s: %w", inputTmpl, err)
-		}
-		yamlStr := string(yamlBytes)
-		kubeYaml := yamlStr
-		cfgs, err := decodeConfigYAML(kubeYaml)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode kubernetes configs in file %s: %w", inputTmpl, err)
-		}
-		for _, cfg := range cfgs {
-			cobjCopy := cfg.DeepCopy()
-			configObjects = append(configObjects, &cobjCopy)
-		}
-	}
-	return configObjects, nil
-}
-
 func getCombinedScheme() (*runtime.Scheme, error) {
 	combinedScheme := runtime.NewScheme()
 	err := schemeBuilder.AddToScheme(combinedScheme)
@@ -251,7 +230,8 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 	return input == target
 }
 
-func CheckAllReport(configs []*istioConfig.Config) ConfigScanningReport {
+// ScanIstioConfig scans all the input configurations and applies all the registered checks.
+func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 	errs := []error{}
 	countByGroup := map[string]int{
 		SecurityAPIGroup:   0,
@@ -349,7 +329,7 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		report := CheckAllReport(configs)
+		report := ScanIstioConfig(configs)
 		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)

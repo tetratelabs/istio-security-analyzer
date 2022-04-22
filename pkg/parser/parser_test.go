@@ -15,39 +15,105 @@
 package parser
 
 import (
+	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	istioConfig "istio.io/istio/pkg/config"
 )
 
-func TestParseFile(t *testing.T) {
+func loadTestConfigs(files ...string) ([]*istioConfig.Config, error) {
+	configObjects := make([]*istioConfig.Config, 0)
+	for _, inputTmpl := range files {
+		yamlBytes, err := ioutil.ReadFile("testdata/" + inputTmpl)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read file %s: %w", inputTmpl, err)
+		}
+		yamlStr := string(yamlBytes)
+		kubeYaml := yamlStr
+		cfgs, err := decodeConfigYAML(kubeYaml)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode kubernetes configs in file %s: %w", inputTmpl, err)
+		}
+		for _, cfg := range cfgs {
+			cobjCopy := cfg.DeepCopy()
+			configObjects = append(configObjects, &cobjCopy)
+		}
+	}
+	return configObjects, nil
+}
+
+func validateReport(t *testing.T, report ConfigScanningReport, wantErrors []string,
+	securityConfigCount int, networkingConfigCount int) {
+	t.Helper()
+	gotSecurity := report.CountByGroup[SecurityAPIGroup]
+	require.Equal(t, securityConfigCount, gotSecurity)
+	gotNetworkingCount := report.CountByGroup[NetworkingAPIGroup]
+	require.Equal(t, networkingConfigCount, gotNetworkingCount)
+	for _, want := range wantErrors {
+		found := false
+		for _, actual := range report.Errors {
+			if strings.Contains(actual.Error(), want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("failed to find error contains substring '%v'\ngot errors %v\n", want, report.Errors)
+		}
+	}
+}
+
+func TestScanIstioConfig(t *testing.T) {
 	testCases := []struct {
-		name       string
-		file       string
-		errMessage []string
+		name                 string
+		configFiles          []string
+		wantErrors           []string
+		securityConfigCount  int
+		networkingConigCount int
 	}{
 		{
-			name: "authz",
-			file: "testdata/authz.yaml",
+			name: "All",
+			configFiles: []string{
+				"authz.yaml",
+				"authz-allow-negative.yaml",
+				"dr-tls.yaml",
+				"gateway-broad-host.yaml",
+			},
+			wantErrors: []string{
+				`authorization policy: found negative matches`,
+				`destination rule: either caCertificates or subjectAltNames is not set`,
+				`host "*" is overly broad`,
+			},
+			securityConfigCount:  2,
+			networkingConigCount: 3,
 		},
 		{
-			name:       "non exists",
-			file:       "authz-noexists.yaml",
-			errMessage: []string{"not a valid path"},
+			name: "SingleAuthz",
+			configFiles: []string{
+				"authz.yaml",
+			},
+			wantErrors:           []string{},
+			securityConfigCount:  1,
+			networkingConigCount: 0,
 		},
 		{
-			name:       "dr tls",
-			file:       "testdata/dr-tls.yaml",
-			errMessage: []string{"subjectAltNames is not set."},
+			name:                 "Nothing",
+			configFiles:          []string{},
+			securityConfigCount:  0,
+			networkingConigCount: 0,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			errs := CheckFileSystem(tc.file)
-			require.Equal(t, len(tc.errMessage), len(errs))
-			for ind, msg := range tc.errMessage {
-				require.Contains(t, errs[ind].Error(), msg)
+			configs, err := loadTestConfigs(tc.configFiles...)
+			if err != nil {
+				t.Fatalf("failed to read config: %v", err)
 			}
+			report := ScanIstioConfig(configs)
+			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConigCount)
 		})
 	}
 }
