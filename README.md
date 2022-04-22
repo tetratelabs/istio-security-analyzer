@@ -59,7 +59,7 @@ We scanned 0 security configurations, and 0 networking configurations.
 
 ### Config Scanning
 
-Now we try to apply some configuration to see how the analyer can help detecting the potential security issues.
+Now we try to apply some configuration to see how the analyzer can help detecting the potential security issues.
 
 In [`./pkg/parser/testdata/gateway-k8s-rbac.yaml`](https://github.com/tetratelabs/istio-security-analyzer/blob/main/pkg/parser/testdata/gateway-k8s-rbac.yaml),
 we set up the some Kubernets RBAC to only allow specific users to create Istio Gateway resource,
