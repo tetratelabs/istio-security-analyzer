@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/dchest/validator"
 	"github.com/ghodss/yaml"
 	networkingv1alpha3 "istio.io/api/networking/v1alpha3"
 	networkingv1 "istio.io/api/networking/v1beta1"
@@ -100,6 +101,12 @@ var (
 				istiogvk.Gateway,
 			},
 			scanner: scanGateways,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.VirtualService,
+			},
+			scanner: scanVirtualServices,
 		},
 	}
 )
@@ -417,6 +424,19 @@ func scanGateways(collections []configCollection) []error {
 	return out
 }
 
+func scanVirtualServices(collections []configCollection) []error {
+	if len(collections) != 1 {
+		return nil
+	}
+	out := []error{}
+	for _, policy := range collections[0] {
+		if err := checkVirtualServices(policy); err != nil {
+			out = append(out, err)
+		}
+	}
+	return out
+}
+
 func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	if c == nil {
 		return nil
@@ -527,4 +547,49 @@ func checkGateway(c *istioConfig.Config) error {
 		}
 	}
 	return nil
+}
+
+func checkVirtualServices(c *istioConfig.Config) error {
+	if c == nil {
+		return nil
+	}
+	vs, ok := c.Spec.(*networkingv1alpha3.VirtualService)
+	if !ok {
+		log.Errorf("unable to convert to istio virtual services: ok: %v\n%v", ok, c.Spec)
+		return nil
+	}
+	if invalidHosts, exists := validateHostNames(vs.Hosts); exists {
+		log.Errorf("Following host names declared in hosts section are found to be invalid, please verify %v\n", invalidHosts)
+	}
+
+	if len(vs.Gateways) == 1 && vs.Gateways[0] == "mesh" {
+		log.Errorf("check gateways")
+	}
+
+	if len(vs.ExportTo) == 0 {
+		log.Errorf("This configuration will be applied to all namespaces, please verify")
+	}
+
+	//check port
+
+	return nil
+}
+
+func validateHostNames(hosts []string) ([]string, bool) {
+	if len(hosts) == 0 {
+		return []string{}, false
+	}
+	var invalidHosts []string
+	hasInvalidHosts := false
+	for _, host := range hosts {
+		if !validator.IsValidDomain(host) {
+			invalidHosts = append(invalidHosts, host)
+			hasInvalidHosts = true
+		}
+	}
+	return invalidHosts, hasInvalidHosts
+}
+
+func checkPorts() {
+	//check port is valid number
 }
