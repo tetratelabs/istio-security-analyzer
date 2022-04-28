@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: disable-sensitive
+spec:
+  hosts:
+  - "admin.example.com"
+  gateways:
+  - guestgateway2
+  http:
+  - match:
+    - uri:
+        prefix: /
+    fault:
+      abort:
+        percentage:
+          value: 100
+        httpStatus: 421
+    route:
+    - destination:
+        port:
+          number: 8000
+        host: dest.default.cluster.local

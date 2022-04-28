@@ -43,6 +43,11 @@ var (
 		istioscheme.AddToScheme,
 		scheme.AddToScheme,
 	)
+
+	tlsModes = map[string]int{
+		TLS_Mode_Simple: 0,
+		TLS_Mode_Mutual: 1,
+	}
 )
 
 const (
@@ -52,6 +57,8 @@ const (
 
 	SecurityAPIGroup   = "security.istio.io"
 	NetworkingAPIGroup = "networking.istio.io"
+	TLS_Mode_Simple    = "SIMPLE"
+	TLS_Mode_Mutual    = "MUTUAL"
 )
 
 // Report contains the scanning report.
@@ -415,6 +422,7 @@ func scanGateways(collections []configCollection) []error {
 	if len(collections) != 1 {
 		return nil
 	}
+
 	out := []error{}
 	for _, policy := range collections[0] {
 		if err := checkGateway(policy); err != nil {
@@ -588,8 +596,4 @@ func validateHostNames(hosts []string) ([]string, bool) {
 		}
 	}
 	return invalidHosts, hasInvalidHosts
-}
-
-func checkPorts() {
-	//check port is valid number
 }

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	networkingv1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/config/kube/crdclient"
 	"istio.io/istio/pilot/pkg/model"
 	istioconfig "istio.io/istio/pkg/config"
@@ -192,6 +193,8 @@ func (c *Client) scanAll() {
 	log.Infof("Staring the scanning.")
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
+	configsGw := []*istioconfig.Config{}
+	configsVs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
 	for _, obj := range namespaces {
 		ns, ok := obj.(*corev1.Namespace)
@@ -203,8 +206,12 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
+		configsGw = append(configsGw, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
+		configsVs = append(configsVs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
 	}
+
+	scanGateways(configsGw, configsVs)
 	configReport := parser.ScanIstioConfig(configs)
 	// TODO(incfly): this is not a clean, we should instead make the parser contains logic of detecting gateway rbac check.
 	if err := c.checkRBACForGateway(); err != nil {
@@ -291,4 +298,155 @@ func (c *Client) checkRBACForGateway() error {
 		}
 	}
 	return errors.New("failed to find cluster role and role bindings to control istio gateway creation")
+}
+
+func scanGateways(collectionsGw, collectionsVS []*istioconfig.Config) ([]gatewayMetadata, []error) {
+	// if len(collectionsGw) != 1 {
+	// 	return nil, nil
+	// }
+	log.Error("?????????????????????????????")
+	out := []error{}
+	gateways := []gatewayMetadata{}
+	for _, policy := range collectionsGw {
+		gw, err := checkGateway(policy)
+		if err != nil {
+			out = append(out, err...)
+		}
+		if gw.gateway != "" {
+			gateways = append(gateways, gw)
+		}
+	}
+	var filteredGW = []gatewayMetadata{}
+	for _, policy := range collectionsGw {
+		filteredGW = append(filteredGW, checkGW4HostsWithHigherTLS(policy, gateways)...)
+	}
+	scanVirtualServices(collectionsVS, filteredGW)
+
+	return gateways, out
+}
+
+func checkGateway(c *istioconfig.Config) (gateway gatewayMetadata, errs []error) {
+	if c == nil {
+		return
+	}
+	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
+	if !ok {
+		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		return
+	}
+	for _, srv := range gw.Servers {
+		for _, host := range srv.Hosts {
+			if host == "*" {
+				errs = append(errs, fmt.Errorf(`host "*" is overly broad, consider to assign a`+
+					`specific domain name such as foo.example.com`))
+				continue
+			}
+			if strings.Contains(host, "*") {
+				gateway.gateway = c.Meta.Name
+				gateway.hosts = append(gateway.hosts, hostMetadata{host: strings.Split(host, "*")[1], tlsMode: srv.GetTls().GetMode().String()})
+			}
+		}
+
+	}
+	return gateway, nil
+}
+
+func checkGW4HostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata) (gwMetadata []gatewayMetadata) {
+	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
+	if !ok {
+		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		return
+	}
+	filtered := gatewayMetadata{}
+	for _, srvr := range gw.Servers {
+		for _, host := range srvr.Hosts {
+			for _, gw2 := range gateway {
+				if strings.Compare(c.Name, gw2.gateway) == 0 {
+					return
+				}
+				for _, h := range gw2.hosts {
+					if strings.Contains(host, h.host) && strings.Compare(host, h.host) != 0 {
+						if networkingv1alpha3.ServerTLSSettings_TLSmode_value[srvr.GetTls().GetMode().String()] > networkingv1alpha3.ServerTLSSettings_TLSmode_value[h.tlsMode] {
+							filtered = gatewayMetadata{gateway: gw2.gateway}
+							filtered.hosts = append(filtered.hosts, hostMetadata{host: host, tlsMode: srvr.GetTls().GetMode().String()})
+						}
+					}
+				}
+			}
+		}
+	}
+	gwMetadata = append(gwMetadata, filtered)
+	return
+}
+
+func scanVirtualServices(collections []*istioconfig.Config, metaData []gatewayMetadata) []error {
+	// if len(collections) != 1 {
+	// 	return nil
+	// }
+	out := []error{}
+	configured := []gatewayMetadata{}
+	for _, policy := range collections {
+		gtwConfigured, err := checkVirtualServicesV2(policy, metaData)
+		if err != nil {
+			out = append(out, err)
+		}
+		if len(gtwConfigured) > 0 {
+			configured = append(configured, gtwConfigured...)
+		}
+	}
+	log.Error("-----------------------------------------------", configured)
+	log.Error("-----------------------------------------------", metaData)
+	return out
+}
+
+func checkVirtualServicesV2(c *istioconfig.Config, gateways []gatewayMetadata) (configuredVS4GW []gatewayMetadata, err error) {
+	if c == nil {
+		return nil, nil
+	}
+	log.Error("?????????????????????????????", gateways)
+	vs, ok := c.Spec.(*networkingv1alpha3.VirtualService)
+	if !ok {
+		log.Errorf("unable to convert to istio virtual services: ok: %v\n%v", ok, c.Spec)
+		return nil, nil
+	}
+	isVSToReject := false
+	for _, vsgtw := range vs.Gateways {
+		for _, gtw := range gateways {
+			if strings.Compare(gtw.gateway, vsgtw) == 0 {
+				for _, hst := range gtw.hosts {
+					for _, host := range vs.Hosts {
+						if strings.Compare(host, hst.host) == 0 {
+							for _, htttp := range vs.Http {
+								for _, match := range htttp.GetMatch() {
+									if strings.Compare("/", match.Uri.GetPrefix()) == 0 {
+										isVSToReject = true
+									}
+								}
+							}
+
+						}
+					}
+					if !isVSToReject {
+						log.Errorf("No virtual service configured to reject call from host %s", hst)
+						// errsToReport = append(errsToReport, *errors.New("no virtual service is there for host %s", hst))
+					} else {
+						configuredVS4GW = append(configuredVS4GW, gtw)
+						isVSToReject = false
+						continue
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
+type gatewayMetadata struct {
+	gateway string
+	hosts   []hostMetadata
+}
+
+type hostMetadata struct {
+	host    string
+	tlsMode string
 }
