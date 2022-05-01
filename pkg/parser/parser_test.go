@@ -106,25 +106,28 @@ func TestScanIstioConfig(t *testing.T) {
 			securityConfigCount:  0,
 			networkingConigCount: 0,
 		},
-		// {
-		// 	name: "Relaxed-Host-check-issue",
-		// 	configFiles: []string{
-		// 		// "authz.yaml",
-		// 		// "authz-allow-negative.yaml",
-		// 		// "dr-tls.yaml",
-		// 		// "gateway-broad-host.yaml",
-		// 		"admingateway.yaml",
-		// 		"gw-simple-tls.yaml",
-		// 	},
-		// 	wantErrors: []string{
-		// 		// `authorization policy: found negative matches`,
-		// 		// `destination rule: either caCertificates or subjectAltNames is not set`,
-		// 		// `host "*" is overly broad`,
-		// 	},
-		// 	// configFiles:          []string{"admingateway.yaml", "gw-simple-tls.yaml"},
-		// 	securityConfigCount:  3,
-		// 	networkingConigCount: 3,
-		// },
+		{
+			name: "Relaxed-Host-check-issue",
+			configFiles: []string{
+				"admingateway.yaml",
+				"gw-simple-tls.yaml",
+			},
+			wantErrors: []string{
+				`no virtual service configured for gateway`,
+			},
+			securityConfigCount:  1,
+			networkingConigCount: 2,
+		},
+		{
+			name: "Relaxed-Host-check-solution",
+			configFiles: []string{
+				"admingateway.yaml",
+				"gw-simple-tls.yaml",
+				"vs-conf-relaxed-host.yaml",
+			},
+			securityConfigCount:  0,
+			networkingConigCount: 2,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

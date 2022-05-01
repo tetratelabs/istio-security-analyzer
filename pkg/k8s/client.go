@@ -203,6 +203,7 @@ func (c *Client) scanAll() {
 		log.Debugf("Scan namespace %v", ns.Name)
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
+		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 		gwAndVsConfigMap[istiogvk.Gateway.Kind] = append(gwAndVsConfigMap[istiogvk.Gateway.Kind], c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 		gwAndVsConfigMap[istiogvk.VirtualService.Kind] = append(gwAndVsConfigMap[istiogvk.VirtualService.Kind], c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
 	}

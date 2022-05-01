@@ -51,8 +51,6 @@ const (
 
 	SecurityAPIGroup   = "security.istio.io"
 	NetworkingAPIGroup = "networking.istio.io"
-	TLS_Mode_Simple    = "SIMPLE"
-	TLS_Mode_Mutual    = "MUTUAL"
 )
 
 // Report contains the scanning report.
@@ -250,16 +248,9 @@ func ScanIstioConfig(configs []*istioConfig.Config, gwAndVsConfMap map[string][]
 				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
 					configSet[istioC.Key()] = istioC
 					col = append(col, istioC)
-				} else if _, ok := gwAndVsConfMap[istioC.GroupVersionKind.Kind]; ok {
-					configSet[istioC.Key()] = istioC
-					col = append(col, istioC)
 				}
 			}
 			collections = append(collections, col)
-		}
-		if gwAndVsConfMap != nil {
-			collections = append(collections, gwAndVsConfMap[istiogvk.Gateway.Kind])
-			collections = append(collections, gwAndVsConfMap[istiogvk.VirtualService.Kind])
 		}
 		if err := c.scanner(collections); len(err) != 0 {
 			errs = append(errs, err...)
@@ -345,7 +336,7 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		report := ScanIstioConfig(configs, map[string][]*istioConfig.Config{})
+		report := ScanIstioConfig(configs, getGatewayAndVsDataFromConfig(configs))
 		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)
@@ -357,6 +348,18 @@ func CheckFileSystem(dir string) []error {
 		log.Debugf("Skip, failed to iterate the directory %v: %v", dir, err)
 	}
 	return out
+}
+
+func getGatewayAndVsDataFromConfig(cnfs []*istioConfig.Config) map[string][]*istioConfig.Config {
+	dataMap := make(map[string][]*istioConfig.Config)
+	for _, cnf := range cnfs {
+		if strings.Compare(istiogvk.Gateway.Kind, cnf.GroupVersionKind.Kind) == 0 {
+			dataMap[istiogvk.Gateway.Kind] = append(dataMap[istiogvk.Gateway.Kind], cnf)
+		} else if strings.Compare(istiogvk.VirtualService.Kind, cnf.GroupVersionKind.Kind) == 0 {
+			dataMap[istiogvk.VirtualService.Kind] = append(dataMap[istiogvk.VirtualService.Kind], cnf)
+		}
+	}
+	return dataMap
 }
 
 func hasNegativeMatchInFrom(from *istiosec.Rule_From) bool {
@@ -424,7 +427,6 @@ func scanGateways(collections []configCollection) []error {
 	if len(collections) != 1 {
 		return nil
 	}
-
 	out := []error{}
 	for _, policy := range collections[0] {
 		if err := checkGateway(policy); err != nil {
