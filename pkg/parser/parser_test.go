@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	istioConfig "istio.io/istio/pkg/config"
+	istiogvk "istio.io/istio/pkg/config/schema/gvk"
 )
 
 func loadTestConfigs(files ...string) ([]*istioConfig.Config, error) {
@@ -105,6 +106,25 @@ func TestScanIstioConfig(t *testing.T) {
 			securityConfigCount:  0,
 			networkingConigCount: 0,
 		},
+		// {
+		// 	name: "Relaxed-Host-check-issue",
+		// 	configFiles: []string{
+		// 		// "authz.yaml",
+		// 		// "authz-allow-negative.yaml",
+		// 		// "dr-tls.yaml",
+		// 		// "gateway-broad-host.yaml",
+		// 		"admingateway.yaml",
+		// 		"gw-simple-tls.yaml",
+		// 	},
+		// 	wantErrors: []string{
+		// 		// `authorization policy: found negative matches`,
+		// 		// `destination rule: either caCertificates or subjectAltNames is not set`,
+		// 		// `host "*" is overly broad`,
+		// 	},
+		// 	// configFiles:          []string{"admingateway.yaml", "gw-simple-tls.yaml"},
+		// 	securityConfigCount:  3,
+		// 	networkingConigCount: 3,
+		// },
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -112,8 +132,20 @@ func TestScanIstioConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to read config: %v", err)
 			}
-			report := ScanIstioConfig(configs)
+			report := ScanIstioConfig(configs, getGatewayAndVsData(configs))
 			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConigCount)
 		})
 	}
+}
+
+func getGatewayAndVsData(cnfs []*istioConfig.Config) map[string][]*istioConfig.Config {
+	dataMap := make(map[string][]*istioConfig.Config)
+	for _, cnf := range cnfs {
+		if strings.Compare(istiogvk.Gateway.Kind, cnf.GroupVersionKind.Kind) == 0 {
+			dataMap[istiogvk.Gateway.Kind] = append(dataMap[istiogvk.Gateway.Kind], cnf)
+		} else if strings.Compare(istiogvk.VirtualService.Kind, cnf.GroupVersionKind.Kind) == 0 {
+			dataMap[istiogvk.VirtualService.Kind] = append(dataMap[istiogvk.VirtualService.Kind], cnf)
+		}
+	}
+	return dataMap
 }

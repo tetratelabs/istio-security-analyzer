@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/dchest/validator"
 	"github.com/ghodss/yaml"
 	networkingv1alpha3 "istio.io/api/networking/v1alpha3"
 	networkingv1 "istio.io/api/networking/v1beta1"
@@ -43,11 +42,6 @@ var (
 		istioscheme.AddToScheme,
 		scheme.AddToScheme,
 	)
-
-	tlsModes = map[string]int{
-		TLS_Mode_Simple: 0,
-		TLS_Mode_Mutual: 1,
-	}
 )
 
 const (
@@ -108,12 +102,6 @@ var (
 				istiogvk.Gateway,
 			},
 			scanner: scanGateways,
-		},
-		{
-			input: []istioConfig.GroupVersionKind{
-				istiogvk.VirtualService,
-			},
-			scanner: scanVirtualServices,
 		},
 	}
 )
@@ -245,7 +233,7 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 }
 
 // ScanIstioConfig scans all the input configurations and applies all the registered checks.
-func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
+func ScanIstioConfig(configs []*istioConfig.Config, gwAndVsConfMap map[string][]*istioConfig.Config) ConfigScanningReport {
 	errs := []error{}
 	countByGroup := map[string]int{
 		SecurityAPIGroup:   0,
@@ -262,13 +250,26 @@ func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 				if gvkEqualsIgnoringVersion(istioC.GroupVersionKind, gvk) {
 					configSet[istioC.Key()] = istioC
 					col = append(col, istioC)
+				} else if _, ok := gwAndVsConfMap[istioC.GroupVersionKind.Kind]; ok {
+					configSet[istioC.Key()] = istioC
+					col = append(col, istioC)
 				}
 			}
 			collections = append(collections, col)
 		}
+		if gwAndVsConfMap != nil {
+			collections = append(collections, gwAndVsConfMap[istiogvk.Gateway.Kind])
+			collections = append(collections, gwAndVsConfMap[istiogvk.VirtualService.Kind])
+		}
 		if err := c.scanner(collections); len(err) != 0 {
 			errs = append(errs, err...)
 		}
+	}
+	gwSecurityErrors := 0
+	if gwAndVsConfMap != nil {
+		err := scanGatewaysAndVirtualServices(gwAndVsConfMap[istiogvk.Gateway.Kind], gwAndVsConfMap[istiogvk.VirtualService.Kind])
+		gwSecurityErrors = len(err)
+		errs = append(errs, err...)
 	}
 	for _, c := range configSet {
 		if c.GroupVersionKind.Group == SecurityAPIGroup {
@@ -278,6 +279,7 @@ func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 			countByGroup[NetworkingAPIGroup] += 1
 		}
 	}
+	countByGroup[SecurityAPIGroup] += gwSecurityErrors
 	return ConfigScanningReport{
 		Errors:       errs,
 		CountByGroup: countByGroup,
@@ -343,7 +345,7 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		report := ScanIstioConfig(configs)
+		report := ScanIstioConfig(configs, map[string][]*istioConfig.Config{})
 		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)
@@ -426,19 +428,6 @@ func scanGateways(collections []configCollection) []error {
 	out := []error{}
 	for _, policy := range collections[0] {
 		if err := checkGateway(policy); err != nil {
-			out = append(out, err)
-		}
-	}
-	return out
-}
-
-func scanVirtualServices(collections []configCollection) []error {
-	if len(collections) != 1 {
-		return nil
-	}
-	out := []error{}
-	for _, policy := range collections[0] {
-		if err := checkVirtualServices(policy); err != nil {
 			out = append(out, err)
 		}
 	}
@@ -555,45 +544,4 @@ func checkGateway(c *istioConfig.Config) error {
 		}
 	}
 	return nil
-}
-
-func checkVirtualServices(c *istioConfig.Config) error {
-	if c == nil {
-		return nil
-	}
-	vs, ok := c.Spec.(*networkingv1alpha3.VirtualService)
-	if !ok {
-		log.Errorf("unable to convert to istio virtual services: ok: %v\n%v", ok, c.Spec)
-		return nil
-	}
-	if invalidHosts, exists := validateHostNames(vs.Hosts); exists {
-		log.Errorf("Following host names declared in hosts section are found to be invalid, please verify %v\n", invalidHosts)
-	}
-
-	if len(vs.Gateways) == 1 && vs.Gateways[0] == "mesh" {
-		log.Errorf("check gateways")
-	}
-
-	if len(vs.ExportTo) == 0 {
-		log.Errorf("This configuration will be applied to all namespaces, please verify")
-	}
-
-	//check port
-
-	return nil
-}
-
-func validateHostNames(hosts []string) ([]string, bool) {
-	if len(hosts) == 0 {
-		return []string{}, false
-	}
-	var invalidHosts []string
-	hasInvalidHosts := false
-	for _, host := range hosts {
-		if !validator.IsValidDomain(host) {
-			invalidHosts = append(invalidHosts, host)
-			hasInvalidHosts = true
-		}
-	}
-	return invalidHosts, hasInvalidHosts
 }

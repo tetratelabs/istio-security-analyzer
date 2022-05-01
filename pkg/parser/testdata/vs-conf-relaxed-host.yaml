@@ -6,7 +6,7 @@ spec:
   hosts:
   - "admin.example.com"
   gateways:
-  - guestgateway2
+  - guestgateway
   http:
   - match:
     - uri:
