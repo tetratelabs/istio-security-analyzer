@@ -89,7 +89,7 @@ func check4VirtualServices(collections []*istioconfig.Config, metaData []gateway
 	}
 	for _, gtwCnf := range metaData {
 		for _, host := range gtwCnf.hosts {
-			if host.resolved {
+			if !host.resolved {
 				msg := fmt.Errorf("no virtual service configured for gateway %s, for host %s, which is creating problem in gateway:%s, to reject call for host %s", gtwCnf.relaxedHostGateway, host.relaxedHost, gtwCnf.problematicHostGateway, host.problematicHost)
 				out = append(out, msg)
 			}
