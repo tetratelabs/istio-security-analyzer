@@ -64,3 +64,31 @@ func TestParseIstioRelease(t *testing.T) {
 		})
 	}
 }
+
+func TestParseReleaseRnage(t *testing.T) {
+	testCases := []struct {
+		input   string
+		wantErr bool
+		release IstioRelease
+	}{
+		{
+			input: "1.11.1",
+		},
+		{
+			input: "1.12.1-1.12.6",
+		},
+		{
+			input: "-1.12.6",
+		},
+		{
+			input: "invalid",
+		},
+		{
+			input: "a-b",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+		})
+	}
+}

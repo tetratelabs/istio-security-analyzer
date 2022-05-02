@@ -28,6 +28,7 @@ const (
 	ParticularType     ReleaseRangeType = "particular"
 	IntervalType       ReleaseRangeType = "range"
 	releaseFormatError                  = "invalid release string, expect 1.<numberic>.<numeric>, such as 1.11.2"
+	rangeFormatError                    = "invalid release range format, valid choices: 1.13.0, 1.12.0-1.12.6, -1.12.3"
 )
 
 type CVEEntry struct {
@@ -43,6 +44,8 @@ type CVEEntry struct {
 	// TODO: think deeper on the appropriate way to represent the release set.
 	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
 	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
+	// "1.12.1", "1.12.1-1.13.2;1.10.0;-1.5.3"
+	ReleaseRange string `yaml:"releases,omitempty"`
 }
 
 // IstioControlPlaneReport contains relevant issues for Istio Control Plane.
@@ -112,6 +115,15 @@ func IstioReleaseFromString(input string) (error, IstioRelease) {
 		Major: vs[1],
 		Minor: vs[2],
 	}
+}
+
+func IstioReleaseRangeFromString(input string) (error, ReleaseRange) {
+	out := ReleaseRange{}
+	// handle as single release.
+	if !strings.Contains(input, "-") {
+	}
+	elems := strings.Split(input, "-")
+	return nil, out
 }
 
 func (rs ReleaseRange) Include(r IstioRelease) bool {

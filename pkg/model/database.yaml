@@ -16,6 +16,7 @@
   description: Unauthenticated control plane denial of service attack due to stack
     exhaustion
   impactScore: 7.5
+  releases: ["-1.11.0", "1.11.0-1.11.7", "1.12.0-1.12.4", "1.13.0-1.13.1"]
   affectedReleases:
   - rangetype: range
     end:
@@ -45,6 +46,7 @@
 - disclosureID: ISTIO-SECURITY-2022-003
   description: Multiple CVEs related to istiod Denial of Service and Envoy.
   impactScore: 7.5
+  releases: ["-1.11.0", "1.11.0-1.11.6", "1.12.0-1.12.3", "1.13.0"]
   affectedReleases:
   - rangetype: range
     end:
@@ -71,6 +73,7 @@
 - disclosureID: ISTIO-SECURITY-2022-001
   description: Authorization Policy For Host Rules During Upgrades.
   impactScore: 6.8
+  releases: ["1.12.0-1.12.1"]
   affectedReleases:
   - rangetype: range
     start:
@@ -82,6 +85,7 @@
 - disclosureID: ISTIO-SECURITY-2022-002
   description: Privileged Escalation in Kubernetes Gateway API
   impactScore: 4.7
+  releases: ["1.12.0-1.12.1"]
   affectedReleases:
   - rangetype: range
     start:
@@ -93,6 +97,7 @@
 - disclosureID: ISTIO-SECURITY-2021-008
   description: Multiple CVEs related to AuthorizationPolicy, EnvoyFilter and Envoy
   impactScore: 8.6
+  releases: ["-1.9.7", "1.10.0-1.10.3", "1.11.0"]
   affectedReleases:
   # All releases prior to 1.9.8
   - rangetype: range
@@ -115,6 +120,7 @@
     specified in the Gateway and DestinationRule credentialName field can be accessed
     from different namespaces
   impactScore: 9.1
+  releases: ["1.9.0-1.9.5", "1.10.0-1.10.1"]
   affectedReleases:
   # All 1.8 patch releases
   - rangetype: range
