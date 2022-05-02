@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/google/go-cmp/cmp"
 	yaml "gopkg.in/yaml.v2"
 	"istio.io/pkg/log"
 )
@@ -138,6 +139,22 @@ func FindVunerabilities(version string) []*CVEEntry {
 	if err := yaml.Unmarshal([]byte(cveDatabaseYAML), &cves); err != nil {
 		log.Errorf("failed to parse cve database: %v", err)
 		return out
+	}
+	// let's doing some diff!
+	// TODO(incfly): remove this after no diff.
+	for _, c := range cves {
+		orig := c
+		c.AffectedReleases = []ReleaseRange{}
+		for _, rangeStr := range c.ReleaseRanges {
+			e, releaseRange := IstioReleaseRangeFromString(rangeStr)
+			if e != nil {
+				panic(fmt.Sprintf("jianfeih failed, name %v, range str %v", c.DisclosureID, rangeStr))
+			}
+			c.AffectedReleases = append(c.AffectedReleases, releaseRange)
+		}
+		if diff := cmp.Diff(orig, c); diff != "" {
+			panic(fmt.Sprintf("jianfeih failed, diff after comparision, name %v, diff %v", c.DisclosureID, diff))
+		}
 	}
 	for ind, entry := range cves {
 		cves[ind].URL = fmt.Sprintf("https://istio.io/latest/news/security/%v", strings.ToLower(entry.DisclosureID))

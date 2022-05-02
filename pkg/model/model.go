@@ -45,7 +45,7 @@ type CVEEntry struct {
 	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
 	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
 	// "1.12.1", "1.12.1-1.13.2;1.10.0;-1.5.3"
-	ReleaseRange string `yaml:"releases,omitempty"`
+	ReleaseRanges []string `yaml:"releases,omitempty"`
 }
 
 // IstioControlPlaneReport contains relevant issues for Istio Control Plane.
@@ -126,9 +126,10 @@ func IstioReleaseRangeFromString(input string) (error, ReleaseRange) {
 			return errors.New(rangeFormatError), out
 		}
 		return nil, ReleaseRange{
-			RangeType: ParticularType,
-			Start:     r,
-			End:       r,
+			RangeType:  ParticularType,
+			Particular: r,
+			// Start:     r,
+			// End:       r,
 		}
 	}
 	elems := strings.Split(input, "-")
