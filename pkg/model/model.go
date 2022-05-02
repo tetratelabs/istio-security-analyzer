@@ -15,6 +15,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,8 +25,9 @@ import (
 type ReleaseRangeType string
 
 const (
-	ParticularType ReleaseRangeType = "particular"
-	IntervalType   ReleaseRangeType = "range"
+	ParticularType     ReleaseRangeType = "particular"
+	IntervalType       ReleaseRangeType = "range"
+	releaseFormatError                  = "invalid release string, expect 1.<numberic>.<numeric>, such as 1.11.2"
 )
 
 type CVEEntry struct {
@@ -89,21 +91,27 @@ func (r IstioRelease) AfterOrEquals(other IstioRelease) bool {
 	return other.BeforeOrEquals(r)
 }
 
-func ParseRelease(s string) (error, IstioRelease) {
+func IstioReleaseFromString(input string) (error, IstioRelease) {
 	out := IstioRelease{}
-	elm := strings.Split(s, ".")
-	if len(elm) != 3 {
-		return fmt.Errorf("failed to parse release, expected x.y.z, got %v", s), out
+	elems := strings.Split(input, ".")
+	if len(elems) != 3 {
+		return errors.New(releaseFormatError), out
 	}
-	major, err := strconv.Atoi(elm[1])
-	if err != nil {
-		return err, out
+	vs := make([]int, 3)
+	for i, e := range elems {
+		var err error
+		vs[i], err = strconv.Atoi(e)
+		if err != nil {
+			return errors.New(releaseFormatError), out
+		}
 	}
-	minor, err := strconv.Atoi(elm[2])
-	if err != nil {
-		return err, out
+	if vs[0] != 1 {
+		return errors.New(releaseFormatError), out
 	}
-	return nil, IstioRelease{Major: major, Minor: minor}
+	return nil, IstioRelease{
+		Major: vs[1],
+		Minor: vs[2],
+	}
 }
 
 func (rs ReleaseRange) Include(r IstioRelease) bool {

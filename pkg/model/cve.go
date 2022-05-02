@@ -104,7 +104,6 @@ func FetchIstioPage() ([]CVEEntry, error) {
 		a.Each(func(j int, elm *goquery.Selection) {
 			e := &entries[i]
 			text := elm.Text()
-			fmt.Printf("jianfeih element %v, %v\n", i, elm.Text())
 			switch j {
 			case 0:
 				e.DisclosureID = text
@@ -130,7 +129,7 @@ func FetchIstioPage() ([]CVEEntry, error) {
 // FindVunerabilities returns the relevant security disclosures that might the given Istio release.
 func FindVunerabilities(version string) []*CVEEntry {
 	out := []*CVEEntry{}
-	err, ver := ParseRelease(version)
+	err, ver := IstioReleaseFromString(version)
 	if err != nil {
 		log.Errorf("Failed to parse version %v", version)
 		return out
