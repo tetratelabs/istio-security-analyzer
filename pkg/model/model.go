@@ -121,8 +121,35 @@ func IstioReleaseRangeFromString(input string) (error, ReleaseRange) {
 	out := ReleaseRange{}
 	// handle as single release.
 	if !strings.Contains(input, "-") {
+		e, r := IstioReleaseFromString(input)
+		if e != nil {
+			return errors.New(rangeFormatError), out
+		}
+		return nil, ReleaseRange{
+			RangeType: ParticularType,
+			Start:     r,
+			End:       r,
+		}
 	}
 	elems := strings.Split(input, "-")
+	if len(elems) > 2 {
+		return errors.New(rangeFormatError), out
+	}
+	out.RangeType = IntervalType
+	if elems[0] != "" {
+		e, r := IstioReleaseFromString(elems[0])
+		if e != nil {
+			return errors.New(rangeFormatError), out
+		}
+		out.Start = r
+	}
+	if elems[1] != "" {
+		e, r := IstioReleaseFromString(elems[1])
+		if e != nil {
+			return errors.New(rangeFormatError), out
+		}
+		out.End = r
+	}
 	return nil, out
 }
 
