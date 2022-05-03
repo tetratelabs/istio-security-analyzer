@@ -17,557 +17,130 @@
     exhaustion
   impactScore: 7.5
   releases: ["-1.11.0", "1.11.0-1.11.7", "1.12.0-1.12.4", "1.13.0-1.13.1"]
-  affectedReleases:
-  - rangetype: range
-    end:
-      major: 11
-      minor: 0
-  - rangetype: range
-    start:
-      major: 11
-      minor: 0
-    end:
-      major: 11
-      minor: 7
-  - rangetype: range
-    start:
-      major: 12
-      minor: 0
-    end:
-      major: 12
-      minor: 4
-  - rangetype: range
-    start:
-      major: 13
-      minor: 0
-    end:
-      major: 13
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2022-003
   description: Multiple CVEs related to istiod Denial of Service and Envoy.
   impactScore: 7.5
   releases: ["-1.11.0", "1.11.0-1.11.6", "1.12.0-1.12.3", "1.13.0"]
-  affectedReleases:
-  - rangetype: range
-    end:
-      major: 11
-      minor: 0
-  - rangetype: range
-    start:
-      major: 11
-      minor: 0
-    end:
-      major: 11
-      minor: 6
-  - rangetype: range
-    start:
-      major: 12
-      minor: 0
-    end:
-      major: 12
-      minor: 3
-  - rangetype: particular
-    particular:
-      major: 13
-      minor: 0
 - disclosureID: ISTIO-SECURITY-2022-001
   description: Authorization Policy For Host Rules During Upgrades.
   impactScore: 6.8
   releases: ["1.12.0-1.12.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 12
-      minor: 0
-    end:
-      major: 12
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2022-002
   description: Privileged Escalation in Kubernetes Gateway API
   impactScore: 4.7
   releases: ["1.12.0-1.12.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 12
-      minor: 0
-    end:
-      major: 12
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2021-008
   description: Multiple CVEs related to AuthorizationPolicy, EnvoyFilter and Envoy
   impactScore: 8.6
   releases: ["-1.9.7", "1.10.0-1.10.3", "1.11.0"]
-  affectedReleases:
-  # All releases prior to 1.9.8
-  - rangetype: range
-    end:
-      major: 9
-      minor: 7
-  - rangetype: range
-    start:
-      major: 10
-      minor: 0
-    end:
-      major: 10
-      minor: 3
-  - rangetype: particular
-    particular:
-      major: 11
-      minor: 0
 - disclosureID: ISTIO-SECURITY-2021-007
   description: Istio contains a remotely exploitable vulnerability where credentials
     specified in the Gateway and DestinationRule credentialName field can be accessed
     from different namespaces
   impactScore: 9.1
   releases: ["-1.9.0", "1.9.0-1.9.5", "1.10.0-1.10.1"]
-  affectedReleases:
-  # All 1.8 patch releases
-  - rangetype: range
-    end:
-      major: 9
-      minor: 0
-  - rangetype: range
-    start:
-      major: 9
-      minor: 0
-    end:
-      major: 9
-      minor: 5
-  - rangetype: range
-    start:
-      major: 10
-      minor: 0
-    end:
-      major: 10
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2021-006
   description: An external client can access unexpected services in the cluster, bypassing
     authorization checks, when a gateway is configured with AUTO_PASSTHROUGH routing
     configuration
   impactScore: 10
   releases: ["-1.8.5", "1.9.0-1.9.4"]
-  affectedReleases:
-  - rangetype: range
-    end:
-      major: 8
-      minor: 5
-  - rangetype: range
-    start:
-      major: 9
-      minor: 0
-    end:
-      major: 9
-      minor: 4
 - disclosureID: ISTIO-SECURITY-2021-005
   description: HTTP request paths with multiple slashes or escaped slash characters may bypass path based authorization rules.
   impactScore: 8.1
   releases: ["-1.8.5", "1.9.0-1.9.4"]
-  affectedReleases:
-  - rangetype: range
-    end:
-      major: 8
-      minor: 5
-  - rangetype: range
-    start:
-      major: 9
-      minor: 0
-    end:
-      major: 9
-      minor: 4
 - disclosureID: ISTIO-SECURITY-2021-004 # special case, no end release, no CVE fix.
   description: Potential misuse of mTLS-only fields in AuthorizationPolicy with plain
     text traffic
   releases: ["1.5.0-"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
 - disclosureID: ISTIO-SECURITY-2021-003
   impactScore: 7.5
   releases: ["-1.8.4", "1.9.0-1.9.2"]
-  affectedReleases:
-  - rangetype: range
-    end:
-      major: 8
-      minor: 4
-  - rangetype: range
-    start:
-      major: 9
-      minor: 0
-    end:
-      major: 9
-      minor: 2
 - disclosureID: ISTIO-SECURITY-2021-002
   description: Upgrades from older Istio versions can affect access control to an
     ingress gateway due to a change of container ports
   releases: ["1.6.0-"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
 - disclosureID: ISTIO-SECURITY-2021-001
   description: JWT authentication can be bypassed when AuthorizationPolicy is misused
   releases: ["1.9.0-1.9.0"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 9
-      minor: 0
-    end:
-      major: 9
-      minor: 0
   impactScore: 8.2
 - disclosureID: ISTIO-SECURITY-2020-011
   description: Envoy incorrectly restores the proxy protocol downstream address for
     non-HTTP connections
   releases: ["1.8.0-"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 8
-      minor: 0
 - disclosureID: ISTIO-SECURITY-2020-010
   impactScore: 8.3
   releases: ["1.6.0-1.6.10", "1.7.0-1.7.2"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
-    end:
-      major: 6
-      minor: 10
-  - rangetype: range
-    start:
-      major: 7
-      minor: 0
-    end:
-      major: 7
-      minor: 2
 - disclosureID: ISTIO-SECURITY-2020-009
   description: Incorrect Envoy configuration for wildcard suffixes used for Principals/Namespaces
     in Authorization Policies for TCP Services
   impactScore: 6.8
   releases: ["1.5.0-1.5.8", "1.6.0-1.6.7"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 8
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
-    end:
-      major: 6
-      minor: 7
 - disclosureID: ISTIO-SECURITY-2020-008
   description: Incorrect validation of wildcard DNS Subject Alternative Names
   impactScore: 6.6
   releases: ["1.5.0-1.5.7", "1.6.0-1.6.3", "-1.5.0"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 7
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
-    end:
-      major: 6
-      minor: 3
-  - rangetype: range
-    end:
-      major: 5 # TODO: testing.
 - disclosureID: ISTIO-SECURITY-2020-007
   description: Multiple denial of service vulnerabilities in Envoy
   impactScore: 7.5
   releases: ["1.5.0-1.5.6", "1.6.0-1.6.3"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 6
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
-    end:
-      major: 6
-      minor: 3
 - disclosureID: ISTIO-SECURITY-2020-006
   description: Denial of service in the HTTP2 library used by Envoy
   impactScore: 7.5
   releases: ["1.4.0-1.4.9", "1.5.0-1.5.4", "1.6.0-1.6.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 9
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 4
-  - rangetype: range
-    start:
-      major: 6
-      minor: 0
-    end:
-      major: 6
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2020-005
   description: Denial of service affecting telemetry v2
   impactScore: 7.5
   releases: ["1.4.0-1.4.8", "1.5.0-1.5.3"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 8
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 3
 - disclosureID: ISTIO-SECURITY-2020-004
   description: Default Kiali security configuration allows full control of mesh
   impactScore: 8.7
   releases: ["1.4.0-1.4.6", "1.5.0-1.5.99"] # workaround.
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 6
-  - rangetype: range
-    start:
-      major: 5
-      minor: 0
-    end:
-      major: 5
-      minor: 99 # workaround.
 - disclosureID: ISTIO-SECURITY-2020-003
   description: Two uncontrolled resource consumption and two incorrect access control
     vulnerabilities in Envoy
   releases: ["1.4.0-1.4.5"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 5
   impactScore: 7.5
 - disclosureID: ISTIO-SECURITY-2020-001
   description: Authentication Policy bypass
   impactScore: 9
   releases: ["1.3.0-1.3.7", "1.4.0-1.4.3"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 3
-      minor: 0
-    end:
-      major: 3
-      minor: 7
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 3
 - disclosureID: ISTIO-SECURITY-2020-002
   description: Mixer policy check bypass caused by improperly accepting certain request
     headers
   impactScore: 7.4
   releases: ["1.3.0-1.3.6"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 3
-      minor: 0
-    end:
-      major: 3
-      minor: 6
 - disclosureID: ISTIO-SECURITY-2019-007
   description: Heap overflow and improper input validation in Envoy
   impactScore: 9
   releases: ["1.2.0-1.2.9", "1.3.0-1.3.5", "1.4.0-1.4.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 9
-  - rangetype: range
-    start:
-      major: 3
-      minor: 0
-    end:
-      major: 3
-      minor: 5
-  - rangetype: range
-    start:
-      major: 4
-      minor: 0
-    end:
-      major: 4
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2019-006
   description: Denial of service
   impactScore: 7.5
   releases: ["1.3.0-1.3.4"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 3
-      minor: 0
-    end:
-      major: 3
-      minor: 4
 - disclosureID: ISTIO-SECURITY-2019-005
   description: Denial of service caused by the presence of numerous HTTP headers in
     client requests
   impactScore: 7.5
   releases: ["1.1.0-1.1.15", "1.2.0-1.2.6", "1.3.0-1.3.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 1
-      minor: 0
-    end:
-      major: 1
-      minor: 15
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 6
-  - rangetype: range
-    start:
-      major: 3
-      minor: 0
-    end:
-      major: 3
-      minor: 1
 - disclosureID: Istio 1.2.4 sidecar image vulnerability
   description: An erroneous 1.2.4 sidecar image was available due to a faulty release
     operation
   releases: ["1.2.0-1.2.4"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 4
 - disclosureID: ISTIO-SECURITY-2019-004
   description: Multiple denial of service vulnerabilities related to HTTP2 support
     in Envoy
   impactScore: 7.5
   releases: ["1.1.0-1.1.12", "1.2.0-1.2.3"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 1
-      minor: 0
-    end:
-      major: 1
-      minor: 12
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 3
 - disclosureID: ISTIO-SECURITY-2019-003
   description: Denial of service in regular expression parsing
   impactScore: 7.5
   releases: ["1.1.0-1.1.12", "1.2.0-1.2.3"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 1
-      minor: 0
-    end:
-      major: 1
-      minor: 12
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 3
 - disclosureID: ISTIO-SECURITY-2019-002
   description: Denial of service affecting JWT access token parsing
   impactScore: 7.5
   releases: ["1.0.0-1.0.8", "1.1.0-1.1.9", "1.2.0-1.2.1"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 0
-      minor: 0
-    end:
-      major: 0
-      minor: 8
-  - rangetype: range
-    start:
-      major: 1
-      minor: 0
-    end:
-      major: 1
-      minor: 9
-  - rangetype: range
-    start:
-      major: 2
-      minor: 0
-    end:
-      major: 2
-      minor: 1
 - disclosureID: ISTIO-SECURITY-2019-001
   description: Incorrect access control
   impactScore: 8.9
   releases: ["1.1.0-1.1.6"]
-  affectedReleases:
-  - rangetype: range
-    start:
-      major: 1
-      minor: 0
-    end:
-      major: 1
-      minor: 6

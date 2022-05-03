@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/google/go-cmp/cmp"
 	yaml "gopkg.in/yaml.v2"
 	"istio.io/pkg/log"
 )
@@ -34,7 +33,7 @@ func BuildEntryInfoForTest() []CVEEntry {
 			DisclosureID: "ISTIO-SECURITY-2022-FOO",
 			Description:  "VERY IMPORTANT SEC report: FOO2022!",
 			ImpactScore:  9.9,
-			AffectedReleases: []ReleaseRange{
+			affectedReleases: []ReleaseRange{
 				// TODO: build testing data by helper func.
 				{
 					RangeType: ParticularType,
@@ -132,33 +131,25 @@ func FindVunerabilities(version string) []*CVEEntry {
 	out := []*CVEEntry{}
 	err, ver := IstioReleaseFromString(version)
 	if err != nil {
-		log.Errorf("Failed to parse version %v", version)
-		return out
+		panic(fmt.Sprintf("Failed to parse version %v", version))
 	}
 	cves := []CVEEntry{}
 	if err := yaml.Unmarshal([]byte(cveDatabaseYAML), &cves); err != nil {
-		log.Errorf("failed to parse cve database: %v", err)
-		return out
+		panic(fmt.Sprintf("Failed to parse cve database: %v", err))
 	}
-	// let's doing some diff!
-	// TODO(incfly): remove this after no diff.
-	for _, c := range cves {
-		orig := c
-		c.AffectedReleases = []ReleaseRange{}
+	for ind, c := range cves {
 		for _, rangeStr := range c.ReleaseRanges {
 			e, releaseRange := IstioReleaseRangeFromString(rangeStr)
 			if e != nil {
-				panic(fmt.Sprintf("jianfeih failed, name %v, range str %v", c.DisclosureID, rangeStr))
+				panic(fmt.Sprintf("failed to parse the release range, disclosure ID %v, range str %v", c.DisclosureID, rangeStr))
 			}
-			c.AffectedReleases = append(c.AffectedReleases, releaseRange)
-		}
-		if diff := cmp.Diff(orig, c); diff != "" {
-			panic(fmt.Sprintf("jianfeih failed, diff after comparision, name %v, diff %v", c.DisclosureID, diff))
+			// We use index of the slice to ensure changing the actual slice element.
+			cves[ind].affectedReleases = append(cves[ind].affectedReleases, releaseRange)
 		}
 	}
 	for ind, entry := range cves {
 		cves[ind].URL = fmt.Sprintf("https://istio.io/latest/news/security/%v", strings.ToLower(entry.DisclosureID))
-		for _, s := range entry.AffectedReleases {
+		for _, s := range entry.affectedReleases {
 			if s.Include(ver) {
 				out = append(out, &cves[ind])
 				break
