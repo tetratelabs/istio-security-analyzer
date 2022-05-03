@@ -55,7 +55,7 @@ func TestParseIstioRelease(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			e, r := IstioReleaseFromString(tc.input)
+			r, e := istioReleaseFromString(tc.input)
 			if tc.wantErr {
 				require.Error(t, e)
 			} else {
@@ -65,7 +65,7 @@ func TestParseIstioRelease(t *testing.T) {
 	}
 }
 
-func TestParseReleaseRnage(t *testing.T) {
+func TestParseReleaseRange(t *testing.T) {
 	testCases := []struct {
 		input        string
 		wantErr      bool
@@ -74,9 +74,8 @@ func TestParseReleaseRnage(t *testing.T) {
 		{
 			input: "1.11.1",
 			releaseRange: ReleaseRange{
-				RangeType: ParticularType,
-				Start:     IstioRelease{Major: 11, Minor: 1},
-				End:       IstioRelease{Major: 11, Minor: 1},
+				RangeType:  ParticularType,
+				Particular: IstioRelease{Major: 11, Minor: 1},
 			},
 		},
 		{
@@ -105,7 +104,7 @@ func TestParseReleaseRnage(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			e, r := IstioReleaseRangeFromString(tc.input)
+			r, e := IstioReleaseRangeFromString(tc.input)
 			if tc.wantErr {
 				require.Error(t, e)
 			} else {

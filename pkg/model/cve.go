@@ -129,7 +129,7 @@ func FetchIstioPage() ([]CVEEntry, error) {
 // FindVunerabilities returns the relevant security disclosures that might the given Istio release.
 func FindVunerabilities(version string) []*CVEEntry {
 	out := []*CVEEntry{}
-	err, ver := IstioReleaseFromString(version)
+	ver, err := istioReleaseFromString(version)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to parse version %v", version))
 	}
@@ -139,7 +139,7 @@ func FindVunerabilities(version string) []*CVEEntry {
 	}
 	for ind, c := range cves {
 		for _, rangeStr := range c.ReleaseRanges {
-			e, releaseRange := IstioReleaseRangeFromString(rangeStr)
+			releaseRange, e := IstioReleaseRangeFromString(rangeStr)
 			if e != nil {
 				panic(fmt.Sprintf("failed to parse the release range, disclosure ID %v, range str %v", c.DisclosureID, rangeStr))
 			}
