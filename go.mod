@@ -39,7 +39,6 @@ require (
 	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
 	github.com/cncf/xds/go v0.0.0-20220330162227-eded343319d0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dchest/validator v0.0.0-20191217151620-8e45250f2371 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0-20210816181553-5444fa50b93d // indirect
 	github.com/envoyproxy/go-control-plane v0.10.2-0.20220405155244-d12adc5eba8e // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.6.7 // indirect
