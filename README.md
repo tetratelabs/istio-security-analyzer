@@ -62,42 +62,4 @@ Config Warnings
 
 ### Config Scanning
 
-Now we try to apply some configuration to see how the analyzer can help detecting the potential security issues.
-
-In [`./pkg/parser/testdata/gateway-k8s-rbac.yaml`](https://github.com/tetratelabs/istio-security-analyzer/blob/main/pkg/parser/testdata/gateway-k8s-rbac.yaml),
-we set up the some Kubernets RBAC to only allow specific users to create Istio Gateway resource,
-this should fix the warning above.
-
-```sh
-kubectl apply -f ./pkg/parser/testdata/
-```
-
-And run the tool again
-
-```sh
-./build/scanner_linux_amd64/scanner
-```
-
-This time we see `Config Report` changes.
-
-```
-Config Warnings
-We scanned 2 security configurations, and 3 networking configurations.
-
-❌ security.istio.io/v1beta1/AuthorizationPolicy foo/httpbin-allow-negative: authorization policy: found negative matches in allow policy
-❌ networking.istio.io/v1alpha3/DestinationRule default/httpbin-tls-bad: destination rule: either caCertificates or subjectAltNames is not set.
-❌ networking.istio.io/v1alpha3/Gateway default/httpbin-gateway: host "*" is overly broad, consider to assign aspecific domain name such as foo.example.com
-```
-
-- For warning "found negative matches in allow policy", see [Use ALLOW-with-positive-matching and DENY-with-negative-match patterns
-](https://istio.io/latest/docs/ops/best-practices/security/#use-allow-with-positive-matching-and-deny-with-negative-match-patterns)
-- For "either caCertificates or subjectAltNames is not set", see [Configure TLS verification in Destination Rule when using TLS origination](https://istio.io/latest/docs/ops/best-practices/security/#use-allow-with-positive-matching-and-deny-with-negative-match-patterns)
-- For "host * is overly broad", see [Avoid overly broad hosts configurations
-](https://istio.io/latest/docs/ops/best-practices/security/#avoid-overly-broad-hosts-configurations) 
-
-
-## Contributing
-
-We welcome feedback and contribution. You can check
-[Good First Issue](https://github.com/tetratelabs/istio-security-analyzer/labels/good%20first%20issue)
-or file a feature request.
+TODO(incfly): more on the config issue pattern detection.
