@@ -33,7 +33,7 @@ func BuildEntryInfoForTest() []CVEEntry {
 			DisclosureID: "ISTIO-SECURITY-2022-FOO",
 			Description:  "VERY IMPORTANT SEC report: FOO2022!",
 			ImpactScore:  9.9,
-			AffectedReleases: []ReleaseRange{
+			affectedReleases: []ReleaseRange{
 				// TODO: build testing data by helper func.
 				{
 					RangeType: ParticularType,
@@ -104,7 +104,6 @@ func FetchIstioPage() ([]CVEEntry, error) {
 		a.Each(func(j int, elm *goquery.Selection) {
 			e := &entries[i]
 			text := elm.Text()
-			fmt.Printf("jianfeih element %v, %v\n", i, elm.Text())
 			switch j {
 			case 0:
 				e.DisclosureID = text
@@ -130,19 +129,27 @@ func FetchIstioPage() ([]CVEEntry, error) {
 // FindVunerabilities returns the relevant security disclosures that might the given Istio release.
 func FindVunerabilities(version string) []*CVEEntry {
 	out := []*CVEEntry{}
-	err, ver := ParseRelease(version)
+	ver, err := istioReleaseFromString(version)
 	if err != nil {
-		log.Errorf("Failed to parse version %v", version)
-		return out
+		panic(fmt.Sprintf("Failed to parse version %v", version))
 	}
 	cves := []CVEEntry{}
 	if err := yaml.Unmarshal([]byte(cveDatabaseYAML), &cves); err != nil {
-		log.Errorf("failed to parse cve database: %v", err)
-		return out
+		panic(fmt.Sprintf("Failed to parse cve database: %v", err))
+	}
+	for ind, c := range cves {
+		for _, rangeStr := range c.ReleaseRanges {
+			releaseRange, e := IstioReleaseRangeFromString(rangeStr)
+			if e != nil {
+				panic(fmt.Sprintf("failed to parse the release range, disclosure ID %v, range str %v", c.DisclosureID, rangeStr))
+			}
+			// We use index of the slice to ensure changing the actual slice element.
+			cves[ind].affectedReleases = append(cves[ind].affectedReleases, releaseRange)
+		}
 	}
 	for ind, entry := range cves {
 		cves[ind].URL = fmt.Sprintf("https://istio.io/latest/news/security/%v", strings.ToLower(entry.DisclosureID))
-		for _, s := range entry.AffectedReleases {
+		for _, s := range entry.affectedReleases {
 			if s.Include(ver) {
 				out = append(out, &cves[ind])
 				break
