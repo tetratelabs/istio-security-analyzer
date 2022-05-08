@@ -192,7 +192,6 @@ func (c *Client) scanAll() {
 	log.Infof("Staring the scanning.")
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
-	gwAndVsConfigMap := map[string][]*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
 	for _, obj := range namespaces {
 		ns, ok := obj.(*corev1.Namespace)
@@ -204,11 +203,10 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
-		gwAndVsConfigMap[istiogvk.Gateway.Kind] = append(gwAndVsConfigMap[istiogvk.Gateway.Kind], c.configByNamespace(istiogvk.Gateway, ns.Name)...)
-		gwAndVsConfigMap[istiogvk.VirtualService.Kind] = append(gwAndVsConfigMap[istiogvk.VirtualService.Kind], c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
+		configs = append(configs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
 	}
 
-	configReport := parser.ScanIstioConfig(configs, gwAndVsConfigMap)
+	configReport := parser.ScanIstioConfig(configs)
 	// TODO(incfly): this is not a clean, we should instead make the parser contains logic of detecting gateway rbac check.
 	if err := c.checkRBACForGateway(); err != nil {
 		configReport.Errors = append(configReport.Errors, err)

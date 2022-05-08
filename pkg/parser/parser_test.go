@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	istioConfig "istio.io/istio/pkg/config"
-	istiogvk "istio.io/istio/pkg/config/schema/gvk"
 )
 
 func loadTestConfigs(files ...string) ([]*istioConfig.Config, error) {
@@ -135,20 +134,8 @@ func TestScanIstioConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to read config: %v", err)
 			}
-			report := ScanIstioConfig(configs, getGatewayAndVsData(configs))
+			report := ScanIstioConfig(configs)
 			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConigCount)
 		})
 	}
-}
-
-func getGatewayAndVsData(cnfs []*istioConfig.Config) map[string][]*istioConfig.Config {
-	dataMap := make(map[string][]*istioConfig.Config)
-	for _, cnf := range cnfs {
-		if strings.Compare(istiogvk.Gateway.Kind, cnf.GroupVersionKind.Kind) == 0 {
-			dataMap[istiogvk.Gateway.Kind] = append(dataMap[istiogvk.Gateway.Kind], cnf)
-		} else if strings.Compare(istiogvk.VirtualService.Kind, cnf.GroupVersionKind.Kind) == 0 {
-			dataMap[istiogvk.VirtualService.Kind] = append(dataMap[istiogvk.VirtualService.Kind], cnf)
-		}
-	}
-	return dataMap
 }

@@ -81,6 +81,11 @@ type scannerConfig struct {
 	scanner scannerFunc
 }
 
+type relaxed_sni_check struct {
+	gateways        []configCollection
+	virtualServices []configCollection
+}
+
 var (
 	scannerConfigs = []scannerConfig{
 		{
@@ -100,6 +105,12 @@ var (
 				istiogvk.Gateway,
 			},
 			scanner: scanGateways,
+		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.VirtualService,
+			},
+			scanner: scanVirtualServices,
 		},
 	}
 )
@@ -231,13 +242,15 @@ func gvkEqualsIgnoringVersion(input, target istioConfig.GroupVersionKind) bool {
 }
 
 // ScanIstioConfig scans all the input configurations and applies all the registered checks.
-func ScanIstioConfig(configs []*istioConfig.Config, gwAndVsConfMap map[string][]*istioConfig.Config) ConfigScanningReport {
+func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 	errs := []error{}
 	countByGroup := map[string]int{
 		SecurityAPIGroup:   0,
 		NetworkingAPIGroup: 0,
 	}
+	sniCheckInput := relaxed_sni_check{}
 	configSet := map[string]*istioConfig.Config{}
+	lastResourceType := ""
 	for _, c := range scannerConfigs {
 		// prepare the input config collections.
 		collections := []configCollection{}
@@ -250,18 +263,20 @@ func ScanIstioConfig(configs []*istioConfig.Config, gwAndVsConfMap map[string][]
 					col = append(col, istioC)
 				}
 			}
+			lastResourceType = gvk.Kind
 			collections = append(collections, col)
 		}
+		checkForGatewayAndVS(lastResourceType, collections, &sniCheckInput)
 		if err := c.scanner(collections); len(err) != 0 {
 			errs = append(errs, err...)
 		}
 	}
 	gwSecurityErrors := 0
-	if gwAndVsConfMap != nil {
-		err := scanGatewaysAndVirtualServices(gwAndVsConfMap[istiogvk.Gateway.Kind], gwAndVsConfMap[istiogvk.VirtualService.Kind])
+	if err := scanGatewaysAndVirtualServices(sniCheckInput); len(err) != 0 {
 		gwSecurityErrors = len(err)
 		errs = append(errs, err...)
 	}
+
 	for _, c := range configSet {
 		if c.GroupVersionKind.Group == SecurityAPIGroup {
 			countByGroup[SecurityAPIGroup] += 1
@@ -274,6 +289,14 @@ func ScanIstioConfig(configs []*istioConfig.Config, gwAndVsConfMap map[string][]
 	return ConfigScanningReport{
 		Errors:       errs,
 		CountByGroup: countByGroup,
+	}
+}
+
+func checkForGatewayAndVS(resource string, payload []configCollection, sniData *relaxed_sni_check) {
+	if strings.Compare(resource, istiogvk.VirtualService.Kind) == 0 {
+		sniData.virtualServices = payload
+	} else if strings.Compare(resource, istiogvk.Gateway.Kind) == 0 {
+		sniData.gateways = payload
 	}
 }
 
@@ -336,7 +359,7 @@ func CheckFileSystem(dir string) []error {
 			return nil
 		}
 		log.Debugf("Checking Istio config file: %v", path)
-		report := ScanIstioConfig(configs, getGatewayAndVsDataFromConfig(configs))
+		report := ScanIstioConfig(configs)
 		for _, e := range report.Errors {
 			if e != nil {
 				out = append(out, e)
@@ -348,18 +371,6 @@ func CheckFileSystem(dir string) []error {
 		log.Debugf("Skip, failed to iterate the directory %v: %v", dir, err)
 	}
 	return out
-}
-
-func getGatewayAndVsDataFromConfig(cnfs []*istioConfig.Config) map[string][]*istioConfig.Config {
-	dataMap := make(map[string][]*istioConfig.Config)
-	for _, cnf := range cnfs {
-		if strings.Compare(istiogvk.Gateway.Kind, cnf.GroupVersionKind.Kind) == 0 {
-			dataMap[istiogvk.Gateway.Kind] = append(dataMap[istiogvk.Gateway.Kind], cnf)
-		} else if strings.Compare(istiogvk.VirtualService.Kind, cnf.GroupVersionKind.Kind) == 0 {
-			dataMap[istiogvk.VirtualService.Kind] = append(dataMap[istiogvk.VirtualService.Kind], cnf)
-		}
-	}
-	return dataMap
 }
 
 func hasNegativeMatchInFrom(from *istiosec.Rule_From) bool {
@@ -545,5 +556,10 @@ func checkGateway(c *istioConfig.Config) error {
 			}
 		}
 	}
+	return nil
+}
+
+func scanVirtualServices(collections []configCollection) []error {
+	// TBD
 	return nil
 }

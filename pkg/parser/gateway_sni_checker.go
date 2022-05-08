@@ -23,11 +23,18 @@ import (
 	"istio.io/pkg/log"
 )
 
-func scanGatewaysAndVirtualServices(collectionsGw, collectionsVS []*istioconfig.Config) []error {
+// this function perform 3 checks :
+// 1. scan gateways for relaxed sni hosts
+// 2. check if any virtual service configured to reject call for those hosts
+// 3. report error if any.
+func scanGatewaysAndVirtualServices(input relaxed_sni_check) []error {
+	if input.gateways == nil {
+		return nil
+	}
 	out := []error{}
 	gateways := []gatewayMetadata{}
-	for _, policy := range collectionsGw {
-		gw, err := checkGatewaysForRelaxedHost(policy)
+	for _, gateway := range input.gateways[0] {
+		gw, err := checkGatewaysForRelaxedSNIHost(gateway)
 		if err != nil {
 			out = append(out, err...)
 		}
@@ -36,15 +43,31 @@ func scanGatewaysAndVirtualServices(collectionsGw, collectionsVS []*istioconfig.
 		}
 	}
 	var filteredGWs = []gatewayMetadata{}
-	for _, policy := range collectionsGw {
-		filteredGWs = append(filteredGWs, checkGW4HostsWithHigherTLS(policy, gateways)...)
+	for _, gateway := range input.gateways[0] {
+		filteredGWs = append(filteredGWs, checkGWHostsWithHigherTLS(gateway, gateways)...)
 	}
-	err := check4VirtualServices(collectionsVS, filteredGWs)
-	out = append(out, err...)
+	if len(filteredGWs) == 0 {
+		return nil
+	}
+
+	if input.virtualServices != nil {
+		err := checkVirtualServices(input.virtualServices[0], filteredGWs)
+		if len(err) > 0 {
+			out = append(out, err...)
+		}
+	} else {
+		for _, gtw := range filteredGWs {
+			for _, host := range gtw.hosts {
+				msg := fmt.Errorf("no virtual service configured for gateway %s, for host %s, which is creating problem in gateway:%s, to reject call for host %s", gtw.relaxedHostGateway, host.relaxedHost, gtw.problematicHostGateway, host.problematicHost)
+				out = append(out, msg)
+			}
+		}
+	}
 	return out
 }
 
-func checkGatewaysForRelaxedHost(c *istioconfig.Config) (gateway gatewayMetadata, errs []error) {
+// check for hosts in gateway configs for relaxed sni hosts
+func checkGatewaysForRelaxedSNIHost(c *istioconfig.Config) (gateway gatewayMetadata, errs []error) {
 	if c == nil {
 		return
 	}
@@ -68,7 +91,9 @@ func checkGatewaysForRelaxedHost(c *istioconfig.Config) (gateway gatewayMetadata
 	return gateway, nil
 }
 
-func checkGW4HostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata) (gwMetadata []gatewayMetadata) {
+// this function iterates over gateways which are having relaxed sni hosts, checking TLS,
+// if other gateways with relaxed sni host found with higher TLS, it returns that data.
+func checkGWHostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata) (gwMetadata []gatewayMetadata) {
 	gtw, ok := c.Spec.(*networkingv1alpha3.Gateway)
 	if !ok {
 		log.Errorf("unable to convert to istio gateway ok:%v\n actualData:%v", ok, c.Spec)
@@ -93,10 +118,11 @@ func checkGW4HostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata
 	return
 }
 
-func check4VirtualServices(collections []*istioconfig.Config, metaData []gatewayMetadata) []error {
+// iterating over virtual services
+func checkVirtualServices(collections []*istioconfig.Config, metaData []gatewayMetadata) []error {
 	out := []error{}
 	for _, policy := range collections {
-		err := checkVirtualServicesV2(policy, metaData)
+		err := scanVirtualService(policy, metaData)
 		if err != nil {
 			out = append(out, err...)
 		}
@@ -112,7 +138,9 @@ func check4VirtualServices(collections []*istioconfig.Config, metaData []gateway
 	return out
 }
 
-func checkVirtualServicesV2(c *istioconfig.Config, gateways []gatewayMetadata) (err []error) {
+// this function scan virtual service configuration to reject relaxed sni host call.
+// if found, marks that host in gateway as resolved.
+func scanVirtualService(c *istioconfig.Config, gateways []gatewayMetadata) (err []error) {
 	if c == nil {
 		return nil
 	}
@@ -127,15 +155,8 @@ func checkVirtualServicesV2(c *istioconfig.Config, gateways []gatewayMetadata) (
 				for i, hst := range gtw.hosts {
 					for _, host := range vs.Hosts {
 						if strings.Compare(host, hst.problematicHost) == 0 {
-							for _, htttp := range vs.Http {
-								for _, match := range htttp.GetMatch() {
-									if strings.Compare("/", match.Uri.GetPrefix()) == 0 {
-										// gatewayMeta := gatewayMetadata{relaxedHostGateway: gtw.relaxedHostGateway, problematicHostGateway: gtw.problematicHostGateway, hosts: }
-										gateways[index].hosts[i].resolved = true
-										// configuredVS4GW = append(configuredVS4GW, gtw)
-										// configuredVS4GW = append(configuredVS4GW, gatewayMetadata{ : gtw.gateway, hosts: []hostMetadata{{host: host, tlsMode: }} })
-									}
-								}
+							if t := isVSConfiguredToRejectSNIHost(vs); t {
+								gateways[index].hosts[i].resolved = true
 							}
 						}
 					}
@@ -144,6 +165,19 @@ func checkVirtualServicesV2(c *istioconfig.Config, gateways []gatewayMetadata) (
 		}
 	}
 	return
+}
+
+// iterates over http conf inside virtual service, returns
+// true : if found configuration to reject relaxed sni host, else false
+func isVSConfiguredToRejectSNIHost(vs *networkingv1alpha3.VirtualService) bool {
+	for _, htttp := range vs.Http {
+		for _, match := range htttp.GetMatch() {
+			if strings.Compare("/", match.Uri.GetPrefix()) == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 //represents metadata of gateway
