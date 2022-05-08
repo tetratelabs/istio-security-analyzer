@@ -15,6 +15,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -28,6 +29,11 @@ const (
 	IntervalType   ReleaseRangeType = "range"
 )
 
+var (
+	releaseFormatError = errors.New("invalid release string, expect 1.<numberic>.<numeric>, such as 1.11.2")
+	rangeFormatError   = errors.New("invalid release range format, valid choices: 1.13.0, 1.12.0-1.12.6, -1.12.3")
+)
+
 type CVEEntry struct {
 	// DisclosureID uniquely identifies a single disclosure. For example, "ISTIO-SECURITY-2022-004".
 	DisclosureID string `yaml:"disclosureID,omitempty"`
@@ -38,9 +44,14 @@ type CVEEntry struct {
 	// [0, 10].
 	ImpactScore float32   `yaml:"impactScore,omitempty"`
 	Date        time.Time `yaml:"date,omitempty"`
-	// TODO: think deeper on the appropriate way to represent the release set.
-	// 1. Release vesion & release CVE can both happen at any time. Wording use "prior to 1.11".
-	AffectedReleases []ReleaseRange `yaml:"affectedReleases,omitempty"`
+
+	// ReleaseRanges is the string of the affected release range, intended to be edited by human.
+	// Example "1.12.1", "1.12.1-1.13.2;1.10.0;-1.5.3"
+	ReleaseRanges []string `yaml:"releases,omitempty"`
+
+	// internal representation of the release range after parisng the `ReleaseRanges` above, intented
+	// to be consumed by program.
+	affectedReleases []ReleaseRange
 }
 
 // IstioControlPlaneReport contains relevant issues for Istio Control Plane.
@@ -89,21 +100,62 @@ func (r IstioRelease) AfterOrEquals(other IstioRelease) bool {
 	return other.BeforeOrEquals(r)
 }
 
-func ParseRelease(s string) (error, IstioRelease) {
+func istioReleaseFromString(input string) (IstioRelease, error) {
 	out := IstioRelease{}
-	elm := strings.Split(s, ".")
-	if len(elm) != 3 {
-		return fmt.Errorf("failed to parse release, expected x.y.z, got %v", s), out
+	elems := strings.Split(input, ".")
+	if len(elems) != 3 {
+		return out, releaseFormatError
 	}
-	major, err := strconv.Atoi(elm[1])
-	if err != nil {
-		return err, out
+	vs := make([]int, 3)
+	for i, e := range elems {
+		var err error
+		vs[i], err = strconv.Atoi(e)
+		if err != nil {
+			return out, releaseFormatError
+		}
 	}
-	minor, err := strconv.Atoi(elm[2])
-	if err != nil {
-		return err, out
+	if vs[0] != 1 {
+		return out, releaseFormatError
 	}
-	return nil, IstioRelease{Major: major, Minor: minor}
+	return IstioRelease{
+		Major: vs[1],
+		Minor: vs[2],
+	}, nil
+}
+
+func IstioReleaseRangeFromString(input string) (ReleaseRange, error) {
+	out := ReleaseRange{}
+	// handle as single release.
+	if !strings.Contains(input, "-") {
+		r, e := istioReleaseFromString(input)
+		if e != nil {
+			return out, rangeFormatError
+		}
+		return ReleaseRange{
+			RangeType:  ParticularType,
+			Particular: r,
+		}, nil
+	}
+	elems := strings.Split(input, "-")
+	if len(elems) > 2 {
+		return out, rangeFormatError
+	}
+	out.RangeType = IntervalType
+	if elems[0] != "" {
+		r, e := istioReleaseFromString(elems[0])
+		if e != nil {
+			return out, rangeFormatError
+		}
+		out.Start = r
+	}
+	if elems[1] != "" {
+		r, e := istioReleaseFromString(elems[1])
+		if e != nil {
+			return out, rangeFormatError
+		}
+		out.End = r
+	}
+	return out, nil
 }
 
 func (rs ReleaseRange) Include(r IstioRelease) bool {

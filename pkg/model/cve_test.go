@@ -58,6 +58,7 @@ func TestFindVunerabilities(t *testing.T) {
 			cves: []string{
 				"ISTIO-SECURITY-2022-004",
 				"ISTIO-SECURITY-2022-003",
+				"ISTIO-SECURITY-2021-003",
 				"ISTIO-SECURITY-2021-005",
 				"ISTIO-SECURITY-2021-006",
 				"ISTIO-SECURITY-2021-007",
