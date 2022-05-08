@@ -105,28 +105,6 @@ func TestScanIstioConfig(t *testing.T) {
 			securityConfigCount:  0,
 			networkingConigCount: 0,
 		},
-		{
-			name: "Relaxed-Host-check-issue",
-			configFiles: []string{
-				"admingateway.yaml",
-				"gw-simple-tls.yaml",
-			},
-			wantErrors: []string{
-				`no virtual service configured for gateway`,
-			},
-			securityConfigCount:  1,
-			networkingConigCount: 2,
-		},
-		{
-			name: "Relaxed-Host-check-solution",
-			configFiles: []string{
-				"admingateway.yaml",
-				"gw-simple-tls.yaml",
-				"vs-conf-relaxed-host.yaml",
-			},
-			securityConfigCount:  0,
-			networkingConigCount: 2,
-		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
