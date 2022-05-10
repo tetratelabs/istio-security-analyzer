@@ -42,6 +42,9 @@ func scanGatewaysAndVirtualServices(inputConfig []configCollection) []error {
 			gateways = append(gateways, gw)
 		}
 	}
+	if len(gateways) == 0 {
+		return nil
+	}
 	var filteredGWs = []gatewayMetadata{}
 	for _, gateway := range gatewayConfigs {
 		filteredGWs = append(filteredGWs, checkGWHostsWithHigherTLS(gateway, gateways)...)
