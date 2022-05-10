@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"istio.io/istio/pilot/pkg/config/kube/crdclient"
 	"istio.io/istio/pilot/pkg/model"
 	istioconfig "istio.io/istio/pkg/config"
+	"istio.io/istio/pkg/config/constants"
 	istiogvk "istio.io/istio/pkg/config/schema/gvk"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
@@ -193,6 +195,7 @@ func (c *Client) scanAll() {
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
+	var jwtPolicyError error = nil
 	for _, obj := range namespaces {
 		ns, ok := obj.(*corev1.Namespace)
 		// Should not happen.
@@ -203,11 +206,21 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.AuthorizationPolicy, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
+		configs = append(configs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
+		err := checkJWTPolicy(ns.Name, c)
+		if err != nil {
+			jwtPolicyError = err
+		}
 	}
+
 	configReport := parser.ScanIstioConfig(configs)
 	// TODO(incfly): this is not a clean, we should instead make the parser contains logic of detecting gateway rbac check.
 	if err := c.checkRBACForGateway(); err != nil {
 		configReport.Errors = append(configReport.Errors, err)
+	}
+
+	if jwtPolicyError != nil {
+		configReport.Errors = append(configReport.Errors, jwtPolicyError)
 	}
 
 	istioVersion := "undefined"
@@ -227,6 +240,46 @@ func (c *Client) scanAll() {
 	c.configReport = configReport
 	log.Debugf("Updated Istio Control Plane report %v, config report %v", c.istioReport, c.configReport)
 	c.mu.Unlock()
+}
+
+func checkJWTPolicy(ns string, client *Client) (err error) {
+	if strings.Compare(ns, constants.IstioSystemNamespace) != 0 {
+		return nil
+	}
+	configMaps, err := client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).List(context.Background(), meta_v1.ListOptions{})
+	if err != nil {
+		return nil
+	}
+	for _, item := range configMaps.Items {
+		if strings.Compare(item.Name, "istio-sidecar-injector") == 0 {
+			var values map[string]interface{}
+			err = json.Unmarshal([]byte(item.Data["values"]), &values)
+			if err != nil {
+				log.Errorf("Unable to convert values data of configMap into map")
+				return nil
+			}
+			globalValuesMap := make(map[string]interface{})
+			globalValues := values["global"]
+			byt, err := json.Marshal(globalValues)
+			if err != nil {
+				log.Errorf("Unable to marshall global values data of configMap")
+				return nil
+			}
+			err = json.Unmarshal(byt, &globalValuesMap)
+			if err != nil {
+				log.Errorf("Unable to marshall global values data of configMap into map")
+				return nil
+			}
+			jwtPolicy, ok := globalValuesMap["jwtPolicy"].(string)
+			if ok {
+				if strings.Compare(jwtPolicy, "third-party-jwt") != 0 {
+					err = fmt.Errorf("please configure 3rd party jwt for more secure auth, visit %+v for more information", `https://istio.io/latest/docs/ops/best-practices/security/#detect-invalid-configurations`)
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // checkRBACForGateway returns error if there's no k8s rbac configured for Istio gateway creation.
