@@ -81,11 +81,6 @@ type scannerConfig struct {
 	scanner scannerFunc
 }
 
-type relaxed_sni_check struct {
-	gateways        []configCollection
-	virtualServices []configCollection
-}
-
 var (
 	scannerConfigs = []scannerConfig{
 		{
@@ -108,9 +103,10 @@ var (
 		},
 		{
 			input: []istioConfig.GroupVersionKind{
+				istiogvk.Gateway,
 				istiogvk.VirtualService,
 			},
-			scanner: scanVirtualServices,
+			scanner: scanGatewaysAndVirtualServices,
 		},
 	}
 )
@@ -248,9 +244,7 @@ func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 		SecurityAPIGroup:   0,
 		NetworkingAPIGroup: 0,
 	}
-	sniCheckInput := relaxed_sni_check{}
 	configSet := map[string]*istioConfig.Config{}
-	lastResourceType := ""
 	for _, c := range scannerConfigs {
 		// prepare the input config collections.
 		collections := []configCollection{}
@@ -263,20 +257,12 @@ func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 					col = append(col, istioC)
 				}
 			}
-			lastResourceType = gvk.Kind
 			collections = append(collections, col)
 		}
-		checkForGatewayAndVS(lastResourceType, collections, &sniCheckInput)
 		if err := c.scanner(collections); len(err) != 0 {
 			errs = append(errs, err...)
 		}
 	}
-	gwSecurityErrors := 0
-	if err := scanGatewaysAndVirtualServices(sniCheckInput); len(err) != 0 {
-		gwSecurityErrors = len(err)
-		errs = append(errs, err...)
-	}
-
 	for _, c := range configSet {
 		if c.GroupVersionKind.Group == SecurityAPIGroup {
 			countByGroup[SecurityAPIGroup] += 1
@@ -285,18 +271,9 @@ func ScanIstioConfig(configs []*istioConfig.Config) ConfigScanningReport {
 			countByGroup[NetworkingAPIGroup] += 1
 		}
 	}
-	countByGroup[SecurityAPIGroup] += gwSecurityErrors
 	return ConfigScanningReport{
 		Errors:       errs,
 		CountByGroup: countByGroup,
-	}
-}
-
-func checkForGatewayAndVS(resource string, payload []configCollection, sniData *relaxed_sni_check) {
-	if strings.Compare(resource, istiogvk.VirtualService.Kind) == 0 {
-		sniData.virtualServices = payload
-	} else if strings.Compare(resource, istiogvk.Gateway.Kind) == 0 {
-		sniData.gateways = payload
 	}
 }
 
@@ -454,7 +431,7 @@ func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	log.Debugf("Checking authorization policy %v/%v", c.Namespace, c.Name)
 	authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
 	if !ok {
-		log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if authz.Action == istiosec.AuthorizationPolicy_ALLOW {
@@ -520,7 +497,7 @@ func checkDestinationRule(c *istioConfig.Config) error {
 	}
 	dr, ok := c.Spec.(*networkingv1alpha3.DestinationRule)
 	if !ok {
-		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if hasVerificationIssue(dr.GetTrafficPolicy().GetTls()) {
@@ -545,7 +522,7 @@ func checkGateway(c *istioConfig.Config) error {
 	}
 	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
 	if !ok {
-		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio gateway : ok: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	for _, srv := range gw.Servers {
@@ -556,10 +533,5 @@ func checkGateway(c *istioConfig.Config) error {
 			}
 		}
 	}
-	return nil
-}
-
-func scanVirtualServices(collections []configCollection) []error {
-	// TBD
 	return nil
 }

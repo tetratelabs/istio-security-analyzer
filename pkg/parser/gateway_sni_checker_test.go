@@ -25,7 +25,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 		networkingConigCount int
 	}{
 		{
-			name: "relaxed-sni-host-check-issue",
+			name: "relaxed sni host without vs reject",
 			configFiles: []string{
 				"admingateway.yaml",
 				"gw-simple-tls.yaml",
@@ -33,11 +33,11 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 			wantErrors: []string{
 				`no virtual service configured for gateway`,
 			},
-			securityConfigCount:  1,
+			securityConfigCount:  0,
 			networkingConigCount: 2,
 		},
 		{
-			name: "relaxed-sni-host-check-solution",
+			name: "relaxed sni host with vs reject",
 			configFiles: []string{
 				"admingateway.yaml",
 				"gw-simple-tls.yaml",

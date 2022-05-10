@@ -23,17 +23,17 @@ import (
 	"istio.io/pkg/log"
 )
 
-// this function perform 3 checks :
-// 1. scan gateways for relaxed sni hosts
-// 2. check if any virtual service configured to reject call for those hosts
-// 3. report error if any.
-func scanGatewaysAndVirtualServices(input relaxed_sni_check) []error {
-	if input.gateways == nil {
-		return nil
+// this function checks: whether gateway has relaxed sni configuration and if so, do we have the virtual service
+// to prevent insecure access.
+func scanGatewaysAndVirtualServices(inputConfig []configCollection) []error {
+	var gatewayConfigs configCollection
+	var vsConfigs configCollection
+	if len(inputConfig) > 0 {
+		gatewayConfigs = inputConfig[0]
 	}
 	out := []error{}
 	gateways := []gatewayMetadata{}
-	for _, gateway := range input.gateways[0] {
+	for _, gateway := range gatewayConfigs {
 		gw, err := checkGatewaysForRelaxedSNIHost(gateway)
 		if err != nil {
 			out = append(out, err...)
@@ -43,15 +43,19 @@ func scanGatewaysAndVirtualServices(input relaxed_sni_check) []error {
 		}
 	}
 	var filteredGWs = []gatewayMetadata{}
-	for _, gateway := range input.gateways[0] {
+	for _, gateway := range gatewayConfigs {
 		filteredGWs = append(filteredGWs, checkGWHostsWithHigherTLS(gateway, gateways)...)
 	}
 	if len(filteredGWs) == 0 {
 		return nil
 	}
 
-	if input.virtualServices != nil {
-		err := checkVirtualServices(input.virtualServices[0], filteredGWs)
+	if len(inputConfig) > 1 {
+		vsConfigs = inputConfig[1]
+	}
+
+	if len(vsConfigs) > 0 {
+		err := hasVSRejectRelaxedTLSMode(vsConfigs, filteredGWs)
 		if len(err) > 0 {
 			out = append(out, err...)
 		}
@@ -73,7 +77,7 @@ func checkGatewaysForRelaxedSNIHost(c *istioconfig.Config) (gateway gatewayMetad
 	}
 	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
 	if !ok {
-		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio gateway : ok: %v\n%v", ok, c.Spec)
 		return
 	}
 	for _, srv := range gw.Servers {
@@ -96,7 +100,7 @@ func checkGatewaysForRelaxedSNIHost(c *istioconfig.Config) (gateway gatewayMetad
 func checkGWHostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata) (gwMetadata []gatewayMetadata) {
 	gtw, ok := c.Spec.(*networkingv1alpha3.Gateway)
 	if !ok {
-		log.Errorf("unable to convert to istio gateway ok:%v\n actualData:%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio gateway ok:%v\n actualData:%v", ok, c.Spec)
 		return
 	}
 	filtered := gatewayMetadata{}
@@ -105,9 +109,10 @@ func checkGWHostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata)
 			for _, gw := range gateway {
 				for _, h := range gw.hosts {
 					if strings.Contains(host, h.relaxedHost) && strings.Compare(host, h.relaxedHost) != 0 {
-						if networkingv1alpha3.ServerTLSSettings_TLSmode_value[srvr.GetTls().GetMode().String()] > networkingv1alpha3.ServerTLSSettings_TLSmode_value[h.tlsModeRelaxedHost] {
+						if gatewayTLSModeLessSecure(srvr.GetTls().GetMode().String(), h.tlsModeRelaxedHost) {
 							filtered = gatewayMetadata{relaxedHostGateway: gw.relaxedHostGateway, problematicHostGateway: c.Name}
-							filtered.hosts = append(filtered.hosts, hostMetadata{relaxedHost: h.relaxedHost, problematicHost: host, tlsModeProblematicHost: srvr.GetTls().GetMode().String(), tlsModeRelaxedHost: h.tlsModeRelaxedHost})
+							hostMetadata := hostMetadata{relaxedHost: h.relaxedHost, problematicHost: host, tlsModeProblematicHost: srvr.GetTls().GetMode().String(), tlsModeRelaxedHost: h.tlsModeRelaxedHost}
+							filtered.hosts = append(filtered.hosts, hostMetadata)
 						}
 					}
 				}
@@ -118,8 +123,12 @@ func checkGWHostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayMetadata)
 	return
 }
 
+func gatewayTLSModeLessSecure(tls1, tls2 string) bool {
+	return networkingv1alpha3.ServerTLSSettings_TLSmode_value[tls1] > networkingv1alpha3.ServerTLSSettings_TLSmode_value[tls2]
+}
+
 // iterating over virtual services
-func checkVirtualServices(collections []*istioconfig.Config, metaData []gatewayMetadata) []error {
+func hasVSRejectRelaxedTLSMode(collections []*istioconfig.Config, metaData []gatewayMetadata) []error {
 	out := []error{}
 	for _, policy := range collections {
 		err := scanVirtualService(policy, metaData)
@@ -138,15 +147,14 @@ func checkVirtualServices(collections []*istioconfig.Config, metaData []gatewayM
 	return out
 }
 
-// this function scan virtual service configuration to reject relaxed sni host call.
-// if found, marks that host in gateway as resolved.
+// this function scan virtual service configuration to reject relaxed sni host call. if found, marks that host in gateway as resolved.
 func scanVirtualService(c *istioconfig.Config, gateways []gatewayMetadata) (err []error) {
 	if c == nil {
 		return nil
 	}
 	vs, ok := c.Spec.(*networkingv1alpha3.VirtualService)
 	if !ok {
-		log.Errorf("unable to convert to istio virtual services: ok: %v\n Actual Data :%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio virtual services: ok: %v\n Actual Data :%v", ok, c.Spec)
 		return nil
 	}
 	for _, vsgtw := range vs.Gateways {
@@ -155,7 +163,7 @@ func scanVirtualService(c *istioconfig.Config, gateways []gatewayMetadata) (err 
 				for i, hst := range gtw.hosts {
 					for _, host := range vs.Hosts {
 						if strings.Compare(host, hst.problematicHost) == 0 {
-							if t := isVSConfiguredToRejectSNIHost(vs); t {
+							if t := isVSRejectRelaxedTLS(vs); t {
 								gateways[index].hosts[i].resolved = true
 							}
 						}
@@ -167,9 +175,8 @@ func scanVirtualService(c *istioconfig.Config, gateways []gatewayMetadata) (err 
 	return
 }
 
-// iterates over http conf inside virtual service, returns
-// true : if found configuration to reject relaxed sni host, else false
-func isVSConfiguredToRejectSNIHost(vs *networkingv1alpha3.VirtualService) bool {
+// iterates over http conf inside virtual service, returns true when found configuration to reject relaxed sni host
+func isVSRejectRelaxedTLS(vs *networkingv1alpha3.VirtualService) bool {
 	for _, htttp := range vs.Http {
 		for _, match := range htttp.GetMatch() {
 			if strings.Compare("/", match.Uri.GetPrefix()) == 0 {
