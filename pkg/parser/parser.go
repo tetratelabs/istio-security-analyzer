@@ -106,7 +106,7 @@ var (
 				istiogvk.Gateway,
 				istiogvk.VirtualService,
 			},
-			scanner: scanGatewaysAndVirtualServices,
+			scanner: scanGatewayRelaxedSniHost,
 		},
 	}
 )

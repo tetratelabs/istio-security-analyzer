@@ -31,7 +31,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 				"gw-simple-tls.yaml",
 			},
 			wantErrors: []string{
-				`no virtual service configured for gateway`,
+				`no virtual service configured for gateway guestgateway, at host .example.com`,
 			},
 			securityConfigCount:  0,
 			networkingConigCount: 2,
