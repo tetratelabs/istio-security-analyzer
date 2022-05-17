@@ -41,6 +41,12 @@ import (
 	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
 )
 
+var (
+	// getK8SConfigMapFunc function as a variable to mock k8s functions for unit testing, NOTE: temporarily placed till k8s client
+	// api mocks will be in place
+	getK8SConfigMapFunc = getK8SConfigMap
+)
+
 type Client struct {
 	configStore model.ConfigStoreCache
 	kubeClient  kubelib.ExtendedClient
@@ -246,46 +252,46 @@ func checkJWTPolicy(ns string, client *Client) (err error) {
 	if strings.Compare(ns, constants.IstioSystemNamespace) != 0 {
 		return nil
 	}
-	configMaps, err := client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).List(context.Background(), meta_v1.ListOptions{})
+	configMap, err := getK8SConfigMapFunc(client, "istio-sidecar-injector")
 	if err != nil {
 		log.Errorf("Error while fetching k8s configMap details :: Error: %v\n", err)
 		return nil
 	}
-	for _, item := range configMaps.Items {
-		if strings.Compare(item.Name, "istio-sidecar-injector") == 0 {
-			var values map[string]interface{}
-			err = json.Unmarshal([]byte(item.Data["values"]), &values)
-			if err != nil {
-				log.Errorf("Unable to convert values data of configMap into map :: Error: %v\n", err)
-				return nil
-			}
-			globalValuesMap := make(map[string]interface{})
-			globalValues := values["global"]
-			byt, err := json.Marshal(globalValues)
-			if err != nil {
-				log.Errorf("Unable to marshall global values data of configMap :: Error: %v\n", err)
-				return nil
-			}
-			err = json.Unmarshal(byt, &globalValuesMap)
-			if err != nil {
-				log.Errorf("Unable to marshall global values data of configMap into map :: Error: %v\n", err)
-				return nil
-			}
-			jwtPolicy, ok := globalValuesMap["jwtPolicy"]
-			if !ok {
-				log.Errorf("No JWT policy is configured")
-				return nil
-			}
-			jwtPolicyStr, ok := jwtPolicy.(string)
-			if ok {
-				if strings.Compare(jwtPolicyStr, "third-party-jwt") != 0 {
-					err = fmt.Errorf("please configure 3rd party jwt for more secure auth, visit %+v for more information", `https://istio.io/latest/docs/ops/best-practices/security/#detect-invalid-configurations`)
-					return err
-				}
-			}
+	var values map[string]interface{}
+	err = json.Unmarshal([]byte(configMap.Data["values"]), &values)
+	if err != nil {
+		log.Errorf("Unable to convert values data of configMap into map :: Error: %v\n", err)
+		return nil
+	}
+	globalValuesMap := make(map[string]interface{})
+	globalValues := values["global"]
+	byt, err := json.Marshal(globalValues)
+	if err != nil {
+		log.Errorf("Unable to marshall global values data of configMap :: Error: %v\n", err)
+		return nil
+	}
+	err = json.Unmarshal(byt, &globalValuesMap)
+	if err != nil {
+		log.Errorf("Unable to marshall global values data of configMap into map :: Error: %v\n", err)
+		return nil
+	}
+	jwtPolicy, ok := globalValuesMap["jwtPolicy"]
+	if !ok {
+		log.Errorf("No JWT policy is configured")
+		return
+	}
+	jwtPolicyStr, ok := jwtPolicy.(string)
+	if ok {
+		if strings.Compare(jwtPolicyStr, "third-party-jwt") != 0 {
+			err = fmt.Errorf("please configure 3rd party jwt for more secure auth, visit %+v for more information", `https://istio.io/latest/docs/ops/best-practices/security/#detect-invalid-configurations`)
+			return err
 		}
 	}
 	return nil
+}
+
+func getK8SConfigMap(client *Client, cmName string) (*corev1.ConfigMap, error) {
+	return client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).Get(context.Background(), cmName, meta_v1.GetOptions{})
 }
 
 // checkRBACForGateway returns error if there's no k8s rbac configured for Istio gateway creation.
