@@ -55,9 +55,9 @@ func scanGatewayRelaxedSniHost(inputConfig []configCollection) []error {
 	}
 
 	if len(vsConfigs) > 0 {
-		err := hasVSRejectRelaxedTLSMode(vsConfigs, filteredGWs)
-		if len(err) > 0 {
-			out = append(out, err...)
+		errs := hasVSRejectRelaxedTLSMode(vsConfigs, filteredGWs)
+		if len(errs) > 0 {
+			out = append(out, errs...)
 		}
 	} else {
 		for _, gtw := range filteredGWs {
@@ -108,7 +108,11 @@ func checkGWHostsWithHigherTLS(c *istioconfig.Config, gateway []gatewayRelaxedSn
 		for _, host := range srvr.Hosts {
 			for _, gw := range gateway {
 				for _, h := range gw.hosts {
+					// checking whether host(s) configured in the gateway contains relaxed SNI host suffix. for example *.example.com
+					// is relaxed SNI host, so this check will look for host containing relaxed SNI host inside it. i.e abc.example.com
 					if strings.Contains(host, h.relaxedHost) && strings.Compare(host, h.relaxedHost) != 0 {
+						// Checking whether the privileged host configured with higher TLS than relaxed SNI host,
+						// 1. Yes, then that host will be checked with whether a virtual service is configured to reject call for privileged host.
 						if gatewayTLSModeLessSecure(srvr.GetTls().GetMode().String(), h.tlsModeRelaxedHost) {
 							filtered = gatewayRelaxedSniCheckInfo{relaxedHostGateway: gw.relaxedHostGateway, privilegedHostGateway: c.Name}
 							gatewayRelaxedSniHostInfo := gatewayRelaxedSniHostInfo{relaxedHost: h.relaxedHost, privilegedHost: host, tlsModePrivilegedHost: srvr.GetTls().GetMode().String(), tlsModeRelaxedHost: h.tlsModeRelaxedHost}
@@ -139,7 +143,7 @@ func hasVSRejectRelaxedTLSMode(collections []*istioconfig.Config, metaData []gat
 	for _, gtwCnf := range metaData {
 		for _, host := range gtwCnf.hosts {
 			if !host.resolved {
-				msg := fmt.Errorf("no virtual service configured for gateway %s, at host %s, which is creating problem in gateway:%s, to reject call for host %s", gtwCnf.relaxedHostGateway, host.relaxedHost, gtwCnf.privilegedHostGateway, host.privilegedHost)
+				msg := fmt.Errorf("no virtual service configured for gateway %q, at host %q, which is creating problem in gateway: %q, to reject call for host %q", gtwCnf.relaxedHostGateway, host.relaxedHost, gtwCnf.privilegedHostGateway, host.privilegedHost)
 				out = append(out, msg)
 			}
 		}
@@ -159,10 +163,12 @@ func scanVirtualService(c *istioconfig.Config, gateways []gatewayRelaxedSniCheck
 	}
 	for _, vsgtw := range vs.Gateways {
 		for index, gtw := range gateways {
+			// checking whether virtual service is associated with the gateway having relaxed SNI host
 			if strings.Compare(gtw.relaxedHostGateway, vsgtw) == 0 {
 				for i, hst := range gtw.hosts {
 					for _, host := range vs.Hosts {
 						if strings.Compare(host, hst.privilegedHost) == 0 {
+							// checking whether any virtual service is configured to reject call for privileged host with higher TLS.
 							if t := isVSRejectRelaxedTLS(vs); t {
 								gateways[index].hosts[i].resolved = true
 							}
