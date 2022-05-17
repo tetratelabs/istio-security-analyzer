@@ -248,6 +248,7 @@ func checkJWTPolicy(ns string, client *Client) (err error) {
 	}
 	configMaps, err := client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).List(context.Background(), meta_v1.ListOptions{})
 	if err != nil {
+		log.Errorf("Error while fetching k8s configMap details :: Error: %v\n", err)
 		return nil
 	}
 	for _, item := range configMaps.Items {
@@ -255,24 +256,29 @@ func checkJWTPolicy(ns string, client *Client) (err error) {
 			var values map[string]interface{}
 			err = json.Unmarshal([]byte(item.Data["values"]), &values)
 			if err != nil {
-				log.Errorf("Unable to convert values data of configMap into map")
+				log.Errorf("Unable to convert values data of configMap into map :: Error: %v\n", err)
 				return nil
 			}
 			globalValuesMap := make(map[string]interface{})
 			globalValues := values["global"]
 			byt, err := json.Marshal(globalValues)
 			if err != nil {
-				log.Errorf("Unable to marshall global values data of configMap")
+				log.Errorf("Unable to marshall global values data of configMap :: Error: %v\n", err)
 				return nil
 			}
 			err = json.Unmarshal(byt, &globalValuesMap)
 			if err != nil {
-				log.Errorf("Unable to marshall global values data of configMap into map")
+				log.Errorf("Unable to marshall global values data of configMap into map :: Error: %v\n", err)
 				return nil
 			}
-			jwtPolicy, ok := globalValuesMap["jwtPolicy"].(string)
+			jwtPolicy, ok := globalValuesMap["jwtPolicy"]
+			if !ok {
+				log.Errorf("No JWT policy is configured")
+				return nil
+			}
+			jwtPolicyStr, ok := jwtPolicy.(string)
 			if ok {
-				if strings.Compare(jwtPolicy, "third-party-jwt") != 0 {
+				if strings.Compare(jwtPolicyStr, "third-party-jwt") != 0 {
 					err = fmt.Errorf("please configure 3rd party jwt for more secure auth, visit %+v for more information", `https://istio.io/latest/docs/ops/best-practices/security/#detect-invalid-configurations`)
 					return err
 				}
