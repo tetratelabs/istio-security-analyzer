@@ -68,10 +68,10 @@ func validateReport(t *testing.T, report ConfigScanningReport, wantErrors []stri
 
 func TestScanIstioConfig(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		configFiles          []string
-		wantErrors           []string
-		securityConfigCount  int
+		name                  string
+		configFiles           []string
+		wantErrors            []string
+		securityConfigCount   int
 		networkingConfigCount int
 	}{
 		{
@@ -87,7 +87,7 @@ func TestScanIstioConfig(t *testing.T) {
 				`destination rule: either caCertificates or subjectAltNames is not set`,
 				`host "*" is overly broad`,
 			},
-			securityConfigCount:  2,
+			securityConfigCount:   2,
 			networkingConfigCount: 3,
 		},
 		{
@@ -95,14 +95,14 @@ func TestScanIstioConfig(t *testing.T) {
 			configFiles: []string{
 				"authz.yaml",
 			},
-			wantErrors:           []string{},
-			securityConfigCount:  1,
+			wantErrors:            []string{},
+			securityConfigCount:   1,
 			networkingConfigCount: 0,
 		},
 		{
-			name:                 "Nothing",
-			configFiles:          []string{},
-			securityConfigCount:  0,
+			name:                  "Nothing",
+			configFiles:           []string{},
+			securityConfigCount:   0,
 			networkingConfigCount: 0,
 		},
 	}

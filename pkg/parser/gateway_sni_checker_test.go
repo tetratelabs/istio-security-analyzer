@@ -18,10 +18,10 @@ import "testing"
 
 func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		configFiles          []string
-		wantErrors           []string
-		securityConfigCount  int
+		name                  string
+		configFiles           []string
+		wantErrors            []string
+		securityConfigCount   int
 		networkingConfigCount int
 	}{
 		{
@@ -33,7 +33,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 			wantErrors: []string{
 				`no virtual service configured for gateway guestgateway, at host .example.com`,
 			},
-			securityConfigCount:  0,
+			securityConfigCount:   0,
 			networkingConfigCount: 2,
 		},
 		{
@@ -43,7 +43,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 				"gw-simple-tls.yaml",
 				"vs-deny-relaxed-sni.yaml",
 			},
-			securityConfigCount:  0,
+			securityConfigCount:   0,
 			networkingConfigCount: 3,
 		},
 	}
