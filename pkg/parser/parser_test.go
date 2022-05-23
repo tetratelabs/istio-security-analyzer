@@ -72,7 +72,7 @@ func TestScanIstioConfig(t *testing.T) {
 		configFiles          []string
 		wantErrors           []string
 		securityConfigCount  int
-		networkingConigCount int
+		networkingConfigCount int
 	}{
 		{
 			name: "All",
@@ -88,7 +88,7 @@ func TestScanIstioConfig(t *testing.T) {
 				`host "*" is overly broad`,
 			},
 			securityConfigCount:  2,
-			networkingConigCount: 3,
+			networkingConfigCount: 3,
 		},
 		{
 			name: "SingleAuthz",
@@ -97,13 +97,13 @@ func TestScanIstioConfig(t *testing.T) {
 			},
 			wantErrors:           []string{},
 			securityConfigCount:  1,
-			networkingConigCount: 0,
+			networkingConfigCount: 0,
 		},
 		{
 			name:                 "Nothing",
 			configFiles:          []string{},
 			securityConfigCount:  0,
-			networkingConigCount: 0,
+			networkingConfigCount: 0,
 		},
 	}
 	for _, tc := range testCases {
@@ -113,7 +113,7 @@ func TestScanIstioConfig(t *testing.T) {
 				t.Fatalf("failed to read config: %v", err)
 			}
 			report := ScanIstioConfig(configs)
-			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConigCount)
+			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConfigCount)
 		})
 	}
 }

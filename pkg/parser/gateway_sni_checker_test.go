@@ -22,7 +22,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 		configFiles          []string
 		wantErrors           []string
 		securityConfigCount  int
-		networkingConigCount int
+		networkingConfigCount int
 	}{
 		{
 			name: "relaxed sni host without vs reject",
@@ -34,7 +34,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 				`no virtual service configured for gateway guestgateway, at host .example.com`,
 			},
 			securityConfigCount:  0,
-			networkingConigCount: 2,
+			networkingConfigCount: 2,
 		},
 		{
 			name: "relaxed sni host with vs reject",
@@ -44,7 +44,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 				"vs-deny-relaxed-sni.yaml",
 			},
 			securityConfigCount:  0,
-			networkingConigCount: 3,
+			networkingConfigCount: 3,
 		},
 	}
 	for _, tc := range testCases {
@@ -54,7 +54,7 @@ func TestScanIstioConfigForRelaxedSNIHost(t *testing.T) {
 				t.Fatalf("failed to read config: %v", err)
 			}
 			report := ScanIstioConfig(configs)
-			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConigCount)
+			validateReport(t, report, tc.wantErrors, tc.securityConfigCount, tc.networkingConfigCount)
 		})
 	}
 }
