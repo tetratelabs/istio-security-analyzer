@@ -101,6 +101,13 @@ var (
 			},
 			scanner: scanGateways,
 		},
+		{
+			input: []istioConfig.GroupVersionKind{
+				istiogvk.Gateway,
+				istiogvk.VirtualService,
+			},
+			scanner: scanGatewayRelaxedSniHost,
+		},
 	}
 )
 
@@ -424,7 +431,7 @@ func checkAuthorizationPolicy(c *istioConfig.Config) error {
 	log.Debugf("Checking authorization policy %v/%v", c.Namespace, c.Name)
 	authz, ok := c.Spec.(*istiosec.AuthorizationPolicy)
 	if !ok {
-		log.Errorf("unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio authz policy: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if authz.Action == istiosec.AuthorizationPolicy_ALLOW {
@@ -490,7 +497,7 @@ func checkDestinationRule(c *istioConfig.Config) error {
 	}
 	dr, ok := c.Spec.(*networkingv1alpha3.DestinationRule)
 	if !ok {
-		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	if hasVerificationIssue(dr.GetTrafficPolicy().GetTls()) {
@@ -515,7 +522,7 @@ func checkGateway(c *istioConfig.Config) error {
 	}
 	gw, ok := c.Spec.(*networkingv1alpha3.Gateway)
 	if !ok {
-		log.Errorf("unable to convert to istio destination rule: ok: %v\n%v", ok, c.Spec)
+		log.Errorf("Unable to convert to istio gateway : ok: %v\n%v", ok, c.Spec)
 		return nil
 	}
 	for _, srv := range gw.Servers {

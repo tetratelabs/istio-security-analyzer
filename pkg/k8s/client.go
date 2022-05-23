@@ -213,10 +213,6 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
-		err := checkJWTPolicy(ns.Name, c)
-		if err != nil {
-			jwtPolicyError = err
-		}
 	}
 
 	configReport := parser.ScanIstioConfig(configs)
