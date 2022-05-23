@@ -44,6 +44,11 @@ func TestCheckJWTPolicies(t *testing.T) {
 		t.Fatalf("should indicate no jwt policy configured")
 	}
 
+	getK8SConfigMapFunc = mockGetK8SConfigMapEmptyValues
+	err = checkJWTPolicy(constants.IstioSystemNamespace, nil)
+	if err != nil {
+		t.Fatalf("should indicate empty values")
+	}
 	getK8SConfigMapFunc = tempGetCMFunc
 
 }
@@ -70,4 +75,9 @@ func mockGetK8SConfigMapJWTNotConfigured(client *Client, cmName string) (*corev1
 		"values": `{"global": {"caName": ""}}`,
 	}
 	return &corev1.ConfigMap{Data: configMapMockData}, nil
+}
+
+// mock function of getK8SConfigMapFunc, returns config map with empty values
+func mockGetK8SConfigMapEmptyValues(client *Client, cmName string) (*corev1.ConfigMap, error) {
+	return &corev1.ConfigMap{Data: map[string]string{}}, nil
 }

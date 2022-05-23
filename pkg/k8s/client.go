@@ -249,7 +249,7 @@ func (c *Client) scanAll() {
 }
 
 func checkJWTPolicy(ns string, client *Client) (err error) {
-	if strings.Compare(ns, constants.IstioSystemNamespace) != 0 {
+	if ns != constants.IstioSystemNamespace {
 		return nil
 	}
 	configMap, err := getK8SConfigMapFunc(client, "istio-sidecar-injector")
@@ -258,7 +258,12 @@ func checkJWTPolicy(ns string, client *Client) (err error) {
 		return nil
 	}
 	var values map[string]interface{}
-	err = json.Unmarshal([]byte(configMap.Data["values"]), &values)
+	data, ok := configMap.Data["values"]
+	if !ok {
+		log.Errorf("returning, since no values configured in config map")
+		return nil
+	}
+	err = json.Unmarshal([]byte(data), &values)
 	if err != nil {
 		log.Errorf("Unable to convert values data of configMap into map :: Error: %v\n", err)
 		return nil
@@ -282,7 +287,7 @@ func checkJWTPolicy(ns string, client *Client) (err error) {
 	}
 	jwtPolicyStr, ok := jwtPolicy.(string)
 	if ok {
-		if strings.Compare(jwtPolicyStr, "third-party-jwt") != 0 {
+		if jwtPolicyStr != "third-party-jwt" {
 			err = fmt.Errorf("please configure 3rd party jwt for more secure auth, visit %+v for more information", `https://istio.io/latest/docs/ops/best-practices/security/#detect-invalid-configurations`)
 			return err
 		}
