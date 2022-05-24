@@ -15,69 +15,45 @@
 package k8s
 
 import (
+	"errors"
 	"testing"
 
-	"istio.io/istio/pkg/config/constants"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestCheckJWTPolicies(t *testing.T) {
-	tempGetCMFunc := getK8SConfigMap
-	// checking with jwt policy configured as third party
-	getK8SConfigMapFunc = mockGetK8SConfigMapThirdParty
-
-	err := checkJWTPolicy(constants.IstioSystemNamespace, nil)
-	if err != nil {
-		t.Fatalf("expected nil error but got %v", err)
+func TestCheckJWTPolicy(t *testing.T) {
+	testCases := []struct {
+		name          string
+		configFile    corev1.ConfigMap
+		expectedError error
+	}{
+		{
+			name:       "more secure jwt policy configured as third-party-jwt",
+			configFile: corev1.ConfigMap{Data: map[string]string{"values": `{"global": {"jwtPolicy": "third-party-jwt"}}`}},
+		},
+		{
+			name:          "less secure jwt policy configured",
+			configFile:    corev1.ConfigMap{Data: map[string]string{"values": `{"global": {"jwtPolicy": "something-default"}}`}},
+			expectedError: errors.New(JWTPolicyConfigError),
+		},
+		{
+			name:          "jwt policy not configured",
+			configFile:    corev1.ConfigMap{Data: map[string]string{}},
+			expectedError: errors.New(JWTPolicyUnknownError),
+		},
 	}
-
-	// checking with jwt policy configured as non-third party configuration
-	getK8SConfigMapFunc = mockGetK8SConfigMapJWTDefault
-	err = checkJWTPolicy(constants.IstioSystemNamespace, nil)
-	if err == nil {
-		t.Fatalf("expected error for less secure jwt policy configuration but got nil")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := checkUses3rdPartyJWT(&tc.configFile)
+			validator(actualError, tc.expectedError, t)
+		})
 	}
-
-	getK8SConfigMapFunc = mockGetK8SConfigMapJWTNotConfigured
-	err = checkJWTPolicy(constants.IstioSystemNamespace, nil)
-	if err != nil {
-		t.Fatalf("should indicate no jwt policy configured")
-	}
-
-	getK8SConfigMapFunc = mockGetK8SConfigMapEmptyValues
-	err = checkJWTPolicy(constants.IstioSystemNamespace, nil)
-	if err != nil {
-		t.Fatalf("should indicate empty values")
-	}
-	getK8SConfigMapFunc = tempGetCMFunc
-
 }
 
-// mock function of getK8SConfigMapFunc, returns K8S config map with valid jwt policy configuration
-func mockGetK8SConfigMapThirdParty(client *Client, cmName string) (*corev1.ConfigMap, error) {
-	configMapMockData := map[string]string{
-		"values": `{"global": {"jwtPolicy": "third-party-jwt"}}`,
+func validator(actualError, expectedError error, t *testing.T) {
+	if actualError != nil && expectedError != nil {
+		if actualError.Error() != expectedError.Error() {
+			t.Fatalf("expected %v but got %v", expectedError, actualError)
+		}
 	}
-	return &corev1.ConfigMap{Data: configMapMockData}, nil
-}
-
-// mock function of getK8SConfigMapFunc, returns K8S config map with less secure jwt policy configuration
-func mockGetK8SConfigMapJWTDefault(client *Client, cmName string) (*corev1.ConfigMap, error) {
-	configMapMockData := map[string]string{
-		"values": `{"global": {"jwtPolicy": "default"}}`,
-	}
-	return &corev1.ConfigMap{Data: configMapMockData}, nil
-}
-
-// mock function of getK8SConfigMapFunc, returns config map without jwt policy configuration
-func mockGetK8SConfigMapJWTNotConfigured(client *Client, cmName string) (*corev1.ConfigMap, error) {
-	configMapMockData := map[string]string{
-		"values": `{"global": {"caName": ""}}`,
-	}
-	return &corev1.ConfigMap{Data: configMapMockData}, nil
-}
-
-// mock function of getK8SConfigMapFunc, returns config map with empty values
-func mockGetK8SConfigMapEmptyValues(client *Client, cmName string) (*corev1.ConfigMap, error) {
-	return &corev1.ConfigMap{Data: map[string]string{}}, nil
 }
