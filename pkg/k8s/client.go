@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"istio.io/istio/pilot/pkg/config/kube/crdclient"
 	"istio.io/istio/pilot/pkg/model"
 	istioconfig "istio.io/istio/pkg/config"
+	"istio.io/istio/pkg/config/constants"
 	istiogvk "istio.io/istio/pkg/config/schema/gvk"
 	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
@@ -37,6 +39,11 @@ import (
 
 	smodel "github.com/tetratelabs/istio-security-scanner/pkg/model"
 	"github.com/tetratelabs/istio-security-scanner/pkg/parser"
+)
+
+var (
+	errJWTPolicyUnknown     = errors.New("JWT policy: unable to determine whether it's 3rd party jwt or not")
+	errJWTPolicyNot3rdParty = errors.New("JWT policy: 3rd party jwt policy not enabled")
 )
 
 type Client struct {
@@ -193,6 +200,7 @@ func (c *Client) scanAll() {
 	// Iterate namespaces.
 	configs := []*istioconfig.Config{}
 	namespaces := c.nsInformer.GetIndexer().List()
+	var jwtPolicyError error = nil
 	for _, obj := range namespaces {
 		ns, ok := obj.(*corev1.Namespace)
 		// Should not happen.
@@ -204,12 +212,20 @@ func (c *Client) scanAll() {
 		configs = append(configs, c.configByNamespace(istiogvk.DestinationRule, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.Gateway, ns.Name)...)
 		configs = append(configs, c.configByNamespace(istiogvk.VirtualService, ns.Name)...)
+		err := checkJWTPolicy(ns.Name, c)
+		if err != nil {
+			jwtPolicyError = err
+		}
 	}
 
 	configReport := parser.ScanIstioConfig(configs)
 	// TODO(incfly): this is not a clean, we should instead make the parser contains logic of detecting gateway rbac check.
 	if err := c.checkRBACForGateway(); err != nil {
 		configReport.Errors = append(configReport.Errors, err)
+	}
+
+	if jwtPolicyError != nil {
+		configReport.Errors = append(configReport.Errors, jwtPolicyError)
 	}
 
 	istioVersion := "undefined"
@@ -229,6 +245,61 @@ func (c *Client) scanAll() {
 	c.configReport = configReport
 	log.Debugf("Updated Istio Control Plane report %v, config report %v", c.istioReport, c.configReport)
 	c.mu.Unlock()
+}
+
+func checkJWTPolicy(ns string, client *Client) error {
+	if ns != constants.IstioSystemNamespace {
+		return nil
+	}
+	configMap, err := retrieveSideCarInjectorConfigMap(client)
+	if err != nil {
+		log.Errorf("Unable to fetch k8s config map : %v\n", err)
+		return errJWTPolicyUnknown
+	}
+	return checkUses3rdPartyJWT(configMap)
+}
+
+func retrieveSideCarInjectorConfigMap(client *Client) (*corev1.ConfigMap, error) {
+	return client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).Get(context.Background(), "istio-sidecar-injector", meta_v1.GetOptions{})
+}
+
+func checkUses3rdPartyJWT(configMap *corev1.ConfigMap) error {
+	var values map[string]interface{}
+	data, ok := configMap.Data["values"]
+	if !ok {
+		log.Errorf("no values configured in config map")
+		return errJWTPolicyUnknown
+	}
+	err := json.Unmarshal([]byte(data), &values)
+	if err != nil {
+		log.Errorf("Unable to convert values data of configMap into map :%v\n", err)
+		return errJWTPolicyUnknown
+	}
+	globalValuesMap := make(map[string]interface{})
+	globalValues := values["global"]
+	byt, err := json.Marshal(globalValues)
+	if err != nil {
+		log.Errorf("Unable to marshall global values data of configMap :%v\n", err)
+		return errJWTPolicyUnknown
+	}
+	err = json.Unmarshal(byt, &globalValuesMap)
+	if err != nil {
+		log.Errorf("Unable to marshall global values data of configMap into map :%v\n", err)
+		return errJWTPolicyUnknown
+	}
+	jwtPolicy, ok := globalValuesMap["jwtPolicy"]
+	if !ok {
+		log.Errorf("No JWT policy is configured")
+		return errJWTPolicyUnknown
+	}
+	jwtPolicyStr, ok := jwtPolicy.(string)
+	if !ok {
+		return errJWTPolicyUnknown
+	}
+	if jwtPolicyStr != "third-party-jwt" {
+		return errJWTPolicyNot3rdParty
+	}
+	return nil
 }
 
 // checkRBACForGateway returns error if there's no k8s rbac configured for Istio gateway creation.
