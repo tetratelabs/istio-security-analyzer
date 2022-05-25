@@ -15,7 +15,6 @@
 package k8s
 
 import (
-	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,12 +33,12 @@ func TestCheckJWTPolicy(t *testing.T) {
 		{
 			name:          "less secure jwt policy configured",
 			configFile:    corev1.ConfigMap{Data: map[string]string{"values": `{"global": {"jwtPolicy": "something-default"}}`}},
-			expectedError: errors.New(JWTPolicyConfigError),
+			expectedError: errJWTPolicyNot3rdParty,
 		},
 		{
 			name:          "jwt policy not configured",
 			configFile:    corev1.ConfigMap{Data: map[string]string{}},
-			expectedError: errors.New(JWTPolicyUnknownError),
+			expectedError: errJWTPolicyUnknown,
 		},
 	}
 	for _, tc := range testCases {

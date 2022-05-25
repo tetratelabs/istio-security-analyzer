@@ -42,8 +42,8 @@ import (
 )
 
 var (
-	JWTPolicyUnknownError = "JWT policy: unable to determine whether it's 3rd party jwt or not"
-	JWTPolicyConfigError  = "JWT policy: 3rd party jwt policy not enabled"
+	errJWTPolicyUnknown     = errors.New("JWT policy: unable to determine whether it's 3rd party jwt or not")
+	errJWTPolicyNot3rdParty = errors.New("JWT policy: 3rd party jwt policy not enabled")
 )
 
 type Client struct {
@@ -251,15 +251,15 @@ func checkJWTPolicy(ns string, client *Client) error {
 	if ns != constants.IstioSystemNamespace {
 		return nil
 	}
-	configMap, err := retrieveConfigMap(client)
+	configMap, err := retrieveSideCarInjectorConfigMap(client)
 	if err != nil {
 		log.Errorf("Unable to fetch k8s config map : %v\n", err)
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	return checkUses3rdPartyJWT(configMap)
 }
 
-func retrieveConfigMap(client *Client) (*corev1.ConfigMap, error) {
+func retrieveSideCarInjectorConfigMap(client *Client) (*corev1.ConfigMap, error) {
 	return client.kubeClient.CoreV1().ConfigMaps(constants.IstioSystemNamespace).Get(context.Background(), "istio-sidecar-injector", meta_v1.GetOptions{})
 }
 
@@ -268,36 +268,36 @@ func checkUses3rdPartyJWT(configMap *corev1.ConfigMap) error {
 	data, ok := configMap.Data["values"]
 	if !ok {
 		log.Errorf("no values configured in config map")
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	err := json.Unmarshal([]byte(data), &values)
 	if err != nil {
 		log.Errorf("Unable to convert values data of configMap into map :%v\n", err)
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	globalValuesMap := make(map[string]interface{})
 	globalValues := values["global"]
 	byt, err := json.Marshal(globalValues)
 	if err != nil {
 		log.Errorf("Unable to marshall global values data of configMap :%v\n", err)
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	err = json.Unmarshal(byt, &globalValuesMap)
 	if err != nil {
 		log.Errorf("Unable to marshall global values data of configMap into map :%v\n", err)
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	jwtPolicy, ok := globalValuesMap["jwtPolicy"]
 	if !ok {
 		log.Errorf("No JWT policy is configured")
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	jwtPolicyStr, ok := jwtPolicy.(string)
 	if !ok {
-		return errors.New(JWTPolicyUnknownError)
+		return errJWTPolicyUnknown
 	}
 	if jwtPolicyStr != "third-party-jwt" {
-		return errors.New(JWTPolicyConfigError)
+		return errJWTPolicyNot3rdParty
 	}
 	return nil
 }
