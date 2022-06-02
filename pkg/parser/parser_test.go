@@ -27,7 +27,7 @@ import (
 func loadTestConfigs(files ...string) ([]*istioConfig.Config, error) {
 	configObjects := make([]*istioConfig.Config, 0)
 	for _, inputTmpl := range files {
-		yamlBytes, err := ioutil.ReadFile("../../samples/" + inputTmpl)
+		yamlBytes, err := ioutil.ReadFile("testdata/" + inputTmpl)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read file %s: %w", inputTmpl, err)
 		}
