@@ -268,7 +268,7 @@ func (c *Client) fetchDetails(args []string) (string, error) {
 		log.Errorf("Unable to fetch workload:%s : %v\n", workload, err)
 		return "", err
 	}
-	return parser.ExtractWorkloadDetails(pod), nil
+	return parser.ParseWorkloadDetails(pod), nil
 }
 
 func extractWorkloadArgs(args []string) (string, string, bool) {
