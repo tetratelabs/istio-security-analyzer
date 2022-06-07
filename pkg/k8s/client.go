@@ -144,14 +144,12 @@ func (c *Client) Run(stopCh chan struct{}) {
 	}
 }
 
-func (c *Client) RunForWorkload(stopCh chan struct{}, args []string) {
-	report, err := c.fetchDetails(args)
+func (c *Client) RunForWorkload(args []string) {
+	report, err := c.fetchWorkloadDetails(args)
 	if err != nil {
 		log.Errorf("Unable to fetch workload details")
 		return
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	log.Infof("Report\n%v", report)
 }
 
@@ -258,10 +256,12 @@ func (c *Client) scanAll() {
 	c.mu.Unlock()
 }
 
-func (c *Client) fetchDetails(args []string) (string, error) {
+func (c *Client) fetchWorkloadDetails(args []string) (string, error) {
 	workload, ns, found := extractWorkloadArgs(args)
 	if !found {
-		return "", nil
+		msg := "unable to parse provided args"
+		log.Errorf(msg+"%v\n", args)
+		return "", errors.New(msg)
 	}
 	pod, err := c.kubeClient.CoreV1().Pods(ns).Get(context.Background(), workload, meta_v1.GetOptions{})
 	if err != nil {

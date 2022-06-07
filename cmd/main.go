@@ -99,12 +99,11 @@ func RunAll(options *analyerOptions) {
 }
 
 func fetchWorkloadInfo(options *analyerOptions, args []string) {
-	c, err := k8s.NewClient(options.KubeConfig, true)
+	c, err := k8s.NewClient(options.KubeConfig, runOnce)
 	if err != nil {
-		log.Fatalf("error %v", err)
+		log.Fatalf("error getting kube client %v", err)
 	}
-	stopCh := make(chan struct{})
-	c.RunForWorkload(stopCh, args)
+	c.RunForWorkload(args)
 }
 
 func init() {
