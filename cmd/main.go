@@ -40,8 +40,15 @@ var (
 	loggingOptions log.Options
 
 	flagVersion = false
+	scannerCmd  = &cobra.Command{}
 
-	scannerCmd = &cobra.Command{
+	analyzerCMD = &cobra.Command{
+		Use:   "analyzer",
+		Short: "parent command to use istio security analyzer features ",
+	}
+	meshCmd = &cobra.Command{
+		Use:   "mesh",
+		Short: "scan configurations and report security vulnerabilities",
 		Run: func(cmd *cobra.Command, args []string) {
 			if flagVersion {
 				fmt.Printf("scanner %s (%s, %s)\n", version, commit, date)
@@ -51,6 +58,21 @@ var (
 			RunAll(&analyerOptions{
 				KubeConfig: kubeConfigPath,
 			})
+		},
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			// TODO(incfly): this seems returning an error if print out. Check why.
+			_ = log.Configure(&loggingOptions)
+			return nil
+		},
+	}
+	workloadCmd = &cobra.Command{
+		Use:   "workload",
+		Short: "scan workload and generate report",
+		Run: func(cmd *cobra.Command, args []string) {
+			// fetch workload specific details here
+			fetchWorkloadInfo(&analyerOptions{
+				KubeConfig: kubeConfigPath,
+			}, args)
 		},
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			// TODO(incfly): this seems returning an error if print out. Check why.
@@ -76,8 +98,17 @@ func RunAll(options *analyerOptions) {
 	c.Run(stopCh)
 }
 
+func fetchWorkloadInfo(options *analyerOptions, args []string) {
+	c, err := k8s.NewClient(options.KubeConfig, true)
+	if err != nil {
+		log.Fatalf("error %v", err)
+	}
+	stopCh := make(chan struct{})
+	c.RunForWorkload(stopCh, args)
+}
+
 func init() {
-	flags := scannerCmd.Flags()
+	flags := meshCmd.Flags()
 	flags.BoolVar(&flagVersion, "version", false, "Show the version of scanner")
 	flags.StringVarP(&kubeConfigPath, "config", "c", "~/.kube/config", "The path to the kubeconfig of a cluster to be analyzed.")
 	flags.BoolVar(&runOnce, "once", true, "Whether running the scanning only one shot. If false, will continue in a loop")
@@ -86,7 +117,9 @@ func init() {
 	// log package itself. That make log output level field as ",kube:none", no effect.
 	loggingOptions.SetOutputLevel("default", log.InfoLevel)
 	loggingOptions.SetOutputLevel("kube", log.NoneLevel)
-	loggingOptions.AttachCobraFlags(scannerCmd)
+	loggingOptions.AttachCobraFlags(meshCmd)
+	analyzerCMD.AddCommand(meshCmd, workloadCmd)
+	scannerCmd.AddCommand(analyzerCMD)
 }
 
 func main() {
