@@ -189,7 +189,3 @@ type WorkloadReport struct {
 	// Service account used by pod
 	ServiceAccount string `json:"Service_Account"`
 }
-
-// func (report WorkloadReport) String() string {
-// 	return fmt.Sprintf("%v", report)
-// }
