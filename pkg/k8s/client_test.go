@@ -49,33 +49,6 @@ func TestCheckJWTPolicy(t *testing.T) {
 	}
 }
 
-func TestExtractArgs(t *testing.T) {
-	testCases := []struct {
-		name  string
-		args  []string
-		found bool
-	}{
-		{
-			name:  "successfully extracted pod-id and namespace",
-			args:  []string{"pod-idXYZ.namespaceXYZ"},
-			found: true,
-		},
-		{
-			name:  "invalid args",
-			args:  []string{"namespaceXYZ"},
-			found: false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, _, found := extractWorkloadArgs(tc.args)
-			if found != tc.found {
-				t.Fatalf("expected workload args extracted: %v but got: %v", tc.found, found)
-			}
-		})
-	}
-}
-
 func validator(actualError, expectedError error, t *testing.T) {
 	if actualError != nil && expectedError != nil {
 		if actualError.Error() != expectedError.Error() {

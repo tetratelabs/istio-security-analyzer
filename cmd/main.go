@@ -103,7 +103,7 @@ func fetchWorkloadInfo(options *analyerOptions, args []string) {
 	if err != nil {
 		log.Fatalf("error getting kube client %v", err)
 	}
-	c.RunForWorkload(args)
+	c.HandleWorkloadRequests(args)
 }
 
 func init() {

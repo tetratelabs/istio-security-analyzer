@@ -144,15 +144,6 @@ func (c *Client) Run(stopCh chan struct{}) {
 	}
 }
 
-func (c *Client) RunForWorkload(args []string) {
-	report, err := c.fetchWorkloadDetails(args)
-	if err != nil {
-		log.Errorf("Unable to fetch workload details")
-		return
-	}
-	log.Infof("Report\n%v", report)
-}
-
 // checkDistrolessImage returns error if the control plane pods use a non distroless image.
 func (c *Client) checkDistrolessImage() error {
 	pods, err := c.kubeClient.GetIstioPods(context.TODO(), "istio-system", map[string]string{})
@@ -254,32 +245,6 @@ func (c *Client) scanAll() {
 	c.configReport = configReport
 	log.Debugf("Updated Istio Control Plane report %v, config report %v", c.istioReport, c.configReport)
 	c.mu.Unlock()
-}
-
-func (c *Client) fetchWorkloadDetails(args []string) (string, error) {
-	workload, ns, found := extractWorkloadArgs(args)
-	if !found {
-		msg := "unable to parse provided args"
-		log.Errorf(msg+"%v\n", args)
-		return "", errors.New(msg)
-	}
-	pod, err := c.kubeClient.CoreV1().Pods(ns).Get(context.Background(), workload, meta_v1.GetOptions{})
-	if err != nil {
-		log.Errorf("Unable to fetch workload:%s : %v\n", workload, err)
-		return "", err
-	}
-	return parser.ParseWorkloadDetails(pod), nil
-}
-
-func extractWorkloadArgs(args []string) (string, string, bool) {
-	// first arg should be containing information about pod and namespace. i.e. <workload-id>.namespace
-	if len(args) > 0 {
-		workloadInfo := strings.Split(args[0], ".")
-		if len(workloadInfo) == 2 {
-			return workloadInfo[0], workloadInfo[1], true
-		}
-	}
-	return "", "", false
 }
 
 func checkJWTPolicy(ns string, client *Client) error {
