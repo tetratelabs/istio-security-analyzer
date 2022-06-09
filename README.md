@@ -92,3 +92,25 @@ We scanned 2 security configurations, and 3 networking configurations.
 - For "host * is overly broad", see [Avoid overly broad hosts configurations
 ](https://istio.io/latest/docs/ops/best-practices/security/#avoid-overly-broad-hosts-configurations) 
 
+### Workload Scanning for Pod
+Istio security analyzer scans configuration files for pod and extract workload related information and generate report.
+
+Run the tool as described below:
+```sh
+./build/scanner_linux_amd64/scanner analyzer workload <pod-id>.<namespace>
+```
+
+Observe the report
+```
+{
+        "Name": "demo-pod",
+        "Cluster": "demo-cluster",
+        "ExcludeInboundPorts": [
+                "1243, 9092"
+        ],
+        "ExcludeOutboundPorts": [
+                "3212, 8767, 2323"
+        ],
+        "Service_Account": "default"
+}
+```
