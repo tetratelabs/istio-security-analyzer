@@ -71,12 +71,12 @@ func workloadReportFromPod(pod *corev1.Pod) model.WorkloadReport {
 	} else {
 		report.ServiceAccount = "default"
 	}
-	getGetExcludedPorts(pod.Annotations, &report)
+	populateExcludedPorts(pod.Annotations, &report)
 	return report
 }
 
 // this function parse annotations and look for excluded ports for capturing traffic
-func getGetExcludedPorts(anotation map[string]string, report *model.WorkloadReport) {
+func populateExcludedPorts(anotation map[string]string, report *model.WorkloadReport) {
 	for key, value := range anotation {
 		if key == "excludeInboundPorts" && value != "" {
 			report.ExcludeInboundPorts = append(report.ExcludeInboundPorts, value)

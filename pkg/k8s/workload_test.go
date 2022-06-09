@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tetratelabs/istio-security-scanner/pkg/model"
 )
 
@@ -48,17 +49,11 @@ func TestParseWorkload(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualReport := workloadReportFromPod(&tc.configFile)
-			if actualReport.Name != tc.expectedReport.Name {
-				t.Fatalf("expected workload name %s in report but got %s", tc.expectedReport.Name, actualReport.Name)
-			} else if actualReport.Cluster != tc.expectedReport.Cluster {
-				t.Fatalf("expected cluster name %s in report but got %s", tc.expectedReport.Cluster, actualReport.Cluster)
-			} else if len(actualReport.ExcludeOutboundPorts) != len(tc.expectedReport.ExcludeOutboundPorts) {
-				t.Fatalf("expected excluded outbound ports %s in report but got %s", tc.expectedReport.ExcludeOutboundPorts, actualReport.ExcludeOutboundPorts)
-			} else if len(actualReport.ExcludeInboundPorts) != len(tc.expectedReport.ExcludeInboundPorts) {
-				t.Fatalf("expected excluded inbound ports %s in report but got %s", tc.expectedReport.ExcludeInboundPorts, actualReport.ExcludeInboundPorts)
-			} else if actualReport.ServiceAccount != tc.expectedReport.ServiceAccount {
-				t.Fatalf("expected Service account name %s in report but got %s", tc.expectedReport.ServiceAccount, actualReport.ServiceAccount)
-			}
+			require.Equal(t, tc.expectedReport.Name, actualReport.Name)
+			require.Equal(t, tc.expectedReport.Cluster, actualReport.Cluster)
+			require.Equal(t, tc.expectedReport.ServiceAccount, actualReport.ServiceAccount)
+			require.Equal(t, tc.expectedReport.ExcludeInboundPorts, actualReport.ExcludeInboundPorts)
+			require.Equal(t, tc.expectedReport.ExcludeOutboundPorts, actualReport.ExcludeOutboundPorts)
 		})
 	}
 }
