@@ -17,10 +17,10 @@ package k8s
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/stretchr/testify/require"
 	"github.com/tetratelabs/istio-security-scanner/pkg/model"
 )
 
