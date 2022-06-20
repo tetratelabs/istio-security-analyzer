@@ -93,7 +93,7 @@ We scanned 2 security configurations, and 3 networking configurations.
 ](https://istio.io/latest/docs/ops/best-practices/security/#avoid-overly-broad-hosts-configurations) 
 
 ### Workload Scanning for Pod
-Istio security analyzer scans configuration files for pod and extract workload related information and generate report.
+Istio security analyzer also supports analyzing Kubernetes workloads to retrieve relevant security info and generate report.
 
 Run the tool as described below:
 ```sh
