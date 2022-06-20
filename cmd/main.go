@@ -66,11 +66,12 @@ var (
 		},
 	}
 	workloadCmd = &cobra.Command{
-		Use:   "workload",
-		Short: "scan workload and generate report",
+		Use:     "workload",
+		Short:   "scan workload and generate report",
+		Example: "analyzer workload <workloadID>.<namepace>",
 		Run: func(cmd *cobra.Command, args []string) {
 			// fetch workload specific details here
-			fetchWorkloadInfo(&analyerOptions{
+			fetchWorkloadReport(&analyerOptions{
 				KubeConfig: kubeConfigPath,
 			}, args)
 		},
@@ -98,12 +99,16 @@ func RunAll(options *analyerOptions) {
 	c.Run(stopCh)
 }
 
-func fetchWorkloadInfo(options *analyerOptions, args []string) {
+func fetchWorkloadReport(options *analyerOptions, args []string) {
+	if len(args) != 1 {
+		log.Errorf("Unable to process input args : %v\n", args)
+		return
+	}
 	c, err := k8s.NewClient(options.KubeConfig, runOnce)
 	if err != nil {
 		log.Fatalf("error getting kube client %v", err)
 	}
-	c.HandleWorkloadRequests(args)
+	c.GenerateWorkloadReport(args)
 }
 
 func init() {

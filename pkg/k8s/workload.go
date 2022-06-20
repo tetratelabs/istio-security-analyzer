@@ -27,9 +27,18 @@ import (
 	"github.com/tetratelabs/istio-security-scanner/pkg/model"
 )
 
-// HandleWorkloadRequests scans workload related configurations and generate report
-func (c *Client) HandleWorkloadRequests(args []string) {
-	report, err := c.fetchWorkloadDetails(args)
+var (
+	errInvalidWorkloadArgs = errors.New("unbale to parse args")
+)
+
+// GenerateWorkloadReport scans workload related configurations and generate report
+func (c *Client) GenerateWorkloadReport(args []string) {
+	podID, ns, err := extractCommandArgs(args)
+	if err != nil {
+		log.Errorf("unable to process command args : %v\n", err)
+		return
+	}
+	report, err := c.fetchWorkloadDetails(podID, ns)
 	if err != nil {
 		log.Errorf("Unable to fetch workload details")
 		return
@@ -42,20 +51,20 @@ func (c *Client) HandleWorkloadRequests(args []string) {
 	log.Infof("Report\n%s", data)
 }
 
-func (c *Client) fetchWorkloadDetails(args []string) (model.WorkloadReport, error) {
-	if len(args) == 0 {
-		return model.WorkloadReport{}, errors.New("information about workload not provided")
-	}
+func extractCommandArgs(args []string) (string, string, error) {
 	// first arg should be containing information about pod and namespace. i.e. <workload-id>.namespace
 	workloadInfo := strings.Split(args[0], ".")
 	if len(workloadInfo) != 2 {
-		msg := "unable to parse provided args"
-		log.Errorf(msg+"%v\n", args)
-		return model.WorkloadReport{}, errors.New(msg)
+		log.Errorf("%v\n", args)
+		return "", "", errInvalidWorkloadArgs
 	}
-	pod, err := c.kubeClient.CoreV1().Pods(workloadInfo[1]).Get(context.Background(), workloadInfo[0], meta_v1.GetOptions{})
+	return workloadInfo[0], workloadInfo[1], nil
+}
+
+func (c *Client) fetchWorkloadDetails(podID, ns string) (model.WorkloadReport, error) {
+	pod, err := c.kubeClient.CoreV1().Pods(ns).Get(context.Background(), podID, meta_v1.GetOptions{})
 	if err != nil {
-		log.Errorf("Unable to fetch workload:%s : %v\n", workloadInfo[0], err)
+		log.Errorf("Unable to fetch pod details:%s : %v\n", podID, err)
 		return model.WorkloadReport{}, err
 	}
 	return workloadReportFromPod(pod), nil
@@ -63,8 +72,8 @@ func (c *Client) fetchWorkloadDetails(args []string) (model.WorkloadReport, erro
 
 // workloadReportFromPod fetches workload specific details
 func workloadReportFromPod(pod *corev1.Pod) model.WorkloadReport {
-	var report model.WorkloadReport
-	report.Name = pod.Name
+	var report = model.WorkloadReport{}
+	report.PodID = pod.Name
 	report.Cluster = pod.ClusterName
 	if pod.Spec.ServiceAccountName != "" {
 		report.ServiceAccount = pod.Spec.ServiceAccountName
@@ -77,11 +86,18 @@ func workloadReportFromPod(pod *corev1.Pod) model.WorkloadReport {
 
 // this function parse annotations and look for excluded ports for capturing traffic
 func populateExcludedPorts(anotation map[string]string, report *model.WorkloadReport) {
+	log.Error(anotation)
 	for key, value := range anotation {
-		if key == "excludeInboundPorts" && value != "" {
+		if key == "traffic.sidecar.istio.io/excludeOutboundPorts" && value != "" {
 			report.ExcludeInboundPorts = append(report.ExcludeInboundPorts, value)
-		} else if key == "excludeOutboundPorts" && value != "" {
+		} else if key == "traffic.sidecar.istio.io/excludeInboundPorts" && value != "" {
 			report.ExcludeOutboundPorts = append(report.ExcludeOutboundPorts, value)
 		}
+	}
+	if report.ExcludeInboundPorts == nil {
+		report.ExcludeInboundPorts = []string{}
+	}
+	if report.ExcludeOutboundPorts == nil {
+		report.ExcludeOutboundPorts = []string{}
 	}
 }

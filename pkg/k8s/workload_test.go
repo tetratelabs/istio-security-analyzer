@@ -33,27 +33,61 @@ func TestParseWorkload(t *testing.T) {
 		{
 			name:           "Parse basic info from pod",
 			configFile:     corev1.Pod{ObjectMeta: v1.ObjectMeta{ClusterName: "test", Name: "podname"}},
-			expectedReport: model.WorkloadReport{ServiceAccount: "default", Cluster: "test", Name: "podname"},
+			expectedReport: model.WorkloadReport{ServiceAccount: "default", Cluster: "test", PodID: "podname", ExcludeInboundPorts: []string{}, ExcludeOutboundPorts: []string{}},
 		},
 		{
 			name:           "Service account check",
 			configFile:     corev1.Pod{ObjectMeta: v1.ObjectMeta{ClusterName: "test", Name: "podname"}, Spec: corev1.PodSpec{ServiceAccountName: "testServiceAcc"}},
-			expectedReport: model.WorkloadReport{ServiceAccount: "testServiceAcc", Cluster: "test", Name: "podname"},
+			expectedReport: model.WorkloadReport{ServiceAccount: "testServiceAcc", Cluster: "test", PodID: "podname", ExcludeInboundPorts: []string{}, ExcludeOutboundPorts: []string{}},
 		},
 		{
 			name:           "Parse excluded ports from pod's annotation",
-			configFile:     corev1.Pod{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{"excludeOutboundPorts": "1234, 5678", "excludeInboundPorts": "4321, 8765"}, ClusterName: "test"}},
-			expectedReport: model.WorkloadReport{ExcludeOutboundPorts: []string{"1234, 5678"}, ExcludeInboundPorts: []string{"4321, 8765"}, ServiceAccount: "default", Cluster: "test"},
+			configFile:     corev1.Pod{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{"traffic.sidecar.istio.io/excludeOutboundPorts": "1234, 5678", "traffic.sidecar.istio.io/excludeInboundPorts": "4321, 8765"}, ClusterName: "test"}},
+			expectedReport: model.WorkloadReport{ExcludeInboundPorts: []string{"1234, 5678"}, ExcludeOutboundPorts: []string{"4321, 8765"}, ServiceAccount: "default", Cluster: "test"},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualReport := workloadReportFromPod(&tc.configFile)
-			require.Equal(t, tc.expectedReport.Name, actualReport.Name)
+			require.Equal(t, tc.expectedReport.PodID, actualReport.PodID)
 			require.Equal(t, tc.expectedReport.Cluster, actualReport.Cluster)
 			require.Equal(t, tc.expectedReport.ServiceAccount, actualReport.ServiceAccount)
 			require.Equal(t, tc.expectedReport.ExcludeInboundPorts, actualReport.ExcludeInboundPorts)
 			require.Equal(t, tc.expectedReport.ExcludeOutboundPorts, actualReport.ExcludeOutboundPorts)
+		})
+	}
+
+}
+func TestExtractCommandArgs(t *testing.T) {
+	testCases := []struct {
+		name              string
+		args              []string
+		expectedError     error
+		expectedNamespace string
+		expectedPodID     string
+	}{
+		{
+			name: "Extract command args, valid input",
+			// args should be in form of <namespace>.<podID>, hence valid args
+			args:              []string{"testNamespace.testPodID"},
+			expectedError:     nil,
+			expectedNamespace: "testNamespace",
+			expectedPodID:     "testPodID",
+		},
+		{
+			name:              "Extract command args, invalid input. ie. invalid args",
+			args:              []string{"invalid_args"},
+			expectedError:     errInvalidWorkloadArgs,
+			expectedNamespace: "",
+			expectedPodID:     "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ns, podID, err := extractCommandArgs(tc.args)
+			require.Equal(t, tc.expectedError, err)
+			require.Equal(t, tc.expectedNamespace, ns)
+			require.Equal(t, tc.expectedPodID, podID)
 		})
 	}
 }
