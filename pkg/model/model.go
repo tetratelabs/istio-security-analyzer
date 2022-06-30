@@ -175,3 +175,17 @@ type securityReportParams struct {
 	NetworkingConfigCount     int
 	SecurityConfigCount       int
 }
+
+// WorkloadReport contains the scanning report for workload
+type WorkloadReport struct {
+	// Pod id
+	PodID string `json:"PodID"`
+	// Cluster name in which pod is running
+	Cluster string `json:"Cluster"`
+	// A comma separated list of inbound ports to be excluded from redirection to Envoy
+	ExcludeInboundPorts []string `json:"ExcludeInboundPorts"`
+	// A comma separated list of outbound ports to be excluded from redirection to Envoy
+	ExcludeOutboundPorts []string `json:"ExcludeOutboundPorts"`
+	// Service account used by pod
+	ServiceAccount string `json:"ServiceAccount"`
+}
