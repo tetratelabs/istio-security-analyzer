@@ -15,7 +15,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-			# TODO(vpn-soft): image path need to be changed according to image registery
+			  # TODO(vpn-soft): image path need to be changed according to image registery
         image: istio-security-analyzer:latest
         ports:
         - containerPort: 8080
