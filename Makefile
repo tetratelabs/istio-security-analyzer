@@ -157,3 +157,12 @@ $(go_tools_dir)/%:
 	@printf "$(ansi_format_dark)" tools "installing $($(notdir $@)@v)..."
 	@GOBIN=$(go_tools_dir) go install $($(notdir $@)@v)
 	@printf "$(ansi_format_bright)" tools "ok"
+
+HUB ?= gcr.io/analyzer
+TAG ?= $(shell git rev-parse --verify HEAD)
+
+docker.build:
+	docker build -t $(HUB)/analyzer:$(TAG) -f Dockerfile .
+
+docker.push:
+	docker push $(HUB)/analyzer:$(TAG)
